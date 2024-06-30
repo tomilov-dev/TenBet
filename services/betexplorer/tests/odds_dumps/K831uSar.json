@@ -1,0 +1,161 @@
+{
+  "code": "K831uSar",
+  "is_odds": true,
+  "error": false,
+  "odds_type": "odds_ha_type",
+  "odds": [
+    {
+      "name": "10x10bet",
+      "odds_t1": 1.33,
+      "odds_t2": 3.05,
+      "odds_date": 1706408820,
+      "open_odds_t1": 1.42,
+      "open_odds_t2": 2.67,
+      "open_odds_date": 1706257500
+    },
+    {
+      "name": "1xBet",
+      "odds_t1": 1.4,
+      "odds_t2": 3.02,
+      "odds_date": 1706412840,
+      "open_odds_t1": 1.42,
+      "open_odds_t2": 2.59,
+      "open_odds_date": 1706257620
+    },
+    {
+      "name": "888sport",
+      "odds_t1": 1.33,
+      "odds_t2": 3.2,
+      "odds_date": 1706266500,
+      "open_odds_t1": 1.36,
+      "open_odds_t2": 3.0,
+      "open_odds_date": 1706259300
+    },
+    {
+      "name": "Alphabet",
+      "odds_t1": 1.35,
+      "odds_t2": 3.2,
+      "odds_date": 1706408760,
+      "open_odds_t1": 1.43,
+      "open_odds_t2": 2.83,
+      "open_odds_date": 1706257500
+    },
+    {
+      "name": "bet-at-home",
+      "odds_t1": 1.38,
+      "odds_t2": 3.2,
+      "odds_date": 1706409240,
+      "open_odds_t1": 1.38,
+      "open_odds_t2": 3.0,
+      "open_odds_date": 1706264340
+    },
+    {
+      "name": "bet365",
+      "odds_t1": 1.36,
+      "odds_t2": 3.25,
+      "odds_date": 1706412780,
+      "open_odds_t1": 1.44,
+      "open_odds_t2": 2.88,
+      "open_odds_date": 1706256840
+    },
+    {
+      "name": "Betfair",
+      "odds_t1": 1.33,
+      "odds_t2": 3.25,
+      "odds_date": 1706410620,
+      "open_odds_t1": 1.44,
+      "open_odds_t2": 2.75,
+      "open_odds_date": 1706260380
+    },
+    {
+      "name": "Betsafe",
+      "odds_t1": 1.35,
+      "odds_t2": 3.2,
+      "odds_date": 1706413440,
+      "open_odds_t1": 1.5,
+      "open_odds_t2": 2.6,
+      "open_odds_date": 1706257320
+    },
+    {
+      "name": "Betsson",
+      "odds_t1": 1.3,
+      "odds_t2": 3.6,
+      "odds_date": 1706413440,
+      "open_odds_t1": 1.5,
+      "open_odds_t2": 2.6,
+      "open_odds_date": 1706257320
+    },
+    {
+      "name": "BetVictor",
+      "odds_t1": 1.36,
+      "odds_t2": 3.25,
+      "odds_date": 1706408280,
+      "open_odds_t1": 1.4,
+      "open_odds_t2": 3.0,
+      "open_odds_date": 1706257440
+    },
+    {
+      "name": "Betway",
+      "odds_t1": 1.33,
+      "odds_t2": 3.75,
+      "odds_date": 1706413080,
+      "open_odds_t1": 1.38,
+      "open_odds_t2": 3.0,
+      "open_odds_date": 1706256900
+    },
+    {
+      "name": "bwin",
+      "odds_t1": 1.36,
+      "odds_t2": 3.2,
+      "odds_date": 1706412660,
+      "open_odds_t1": 1.42,
+      "open_odds_t2": 2.9,
+      "open_odds_date": 1706257860
+    },
+    {
+      "name": "Interwetten",
+      "odds_t1": 1.37,
+      "odds_t2": 3.2,
+      "odds_date": 1706280600,
+      "open_odds_t1": 1.35,
+      "open_odds_t2": 3.2,
+      "open_odds_date": 1706256720
+    },
+    {
+      "name": "Pinnacle",
+      "odds_t1": 1.33,
+      "odds_t2": 3.67,
+      "odds_date": 1706412660,
+      "open_odds_t1": 1.43,
+      "open_odds_t2": 3.02,
+      "open_odds_date": 1706257560
+    },
+    {
+      "name": "Unibet",
+      "odds_t1": 1.36,
+      "odds_t2": 3.3,
+      "odds_date": 1706410860,
+      "open_odds_t1": 1.35,
+      "open_odds_t2": 3.3,
+      "open_odds_date": 1706259000
+    },
+    {
+      "name": "William Hill",
+      "odds_t1": 1.36,
+      "odds_t2": 3.3,
+      "odds_date": 1706410380,
+      "open_odds_t1": 1.4,
+      "open_odds_t2": 2.9,
+      "open_odds_date": 1706257020
+    },
+    {
+      "name": "Betfair Exchange",
+      "odds_t1": 1.37,
+      "odds_t2": 3.42,
+      "odds_date": 1706412720,
+      "open_odds_t1": 1.46,
+      "open_odds_t2": 3.1,
+      "open_odds_date": 1706257140
+    }
+  ]
+}
