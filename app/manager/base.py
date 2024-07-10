@@ -2,21 +2,22 @@ import sys
 import asyncio
 from abc import ABC, abstractmethod
 from pathlib import Path
-from pymongo.errors import DuplicateKeyError
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
 from model.service import MatchSDM
 from model.domain import MatchStatusDTO
-from manager.service import SportType
 from manager.service import (
+    SportType,
     FlashScoreMatchScraperInterface,
     BetExplorerScraperInterface,
     FlashScoreTournamentScraperInterface,
     FlashScoreTournamentMatchesScraperIntefrace,
     FlashScoreWeeklyMatchesScraper,
+    FlashScorePlayerScraperInterface,
+    FlashScorePlayerMatchesScraperInterface,
+    FUTURE_DAYS,
 )
 
 
@@ -44,19 +45,15 @@ class BaseManager:
         sport: SportType,
         data: BaseDataInterface,
         match: FlashScoreMatchScraperInterface,
-        odds: BetExplorerScraperInterface,
-        tournament: FlashScoreTournamentScraperInterface,
-        tournament_matches: FlashScoreTournamentMatchesScraperIntefrace,
         week: FlashScoreWeeklyMatchesScraper,
-    ):
+        odds: BetExplorerScraperInterface,
+    ) -> None:
         self.sport = sport
         self.data = data
 
         self.match = match
-        self.odds = odds
-        self.tournament = tournament
-        self.tournament_matches = tournament_matches
         self.week = week
+        self.odds = odds
 
     async def find_code(self, code: str) -> MatchSDM | None:
         """Return match code and status if exists in the database"""
@@ -65,6 +62,9 @@ class BaseManager:
     async def find_codes(self, codes: list[str]) -> list[dict]:
         """Return match codes and statuses if codes exists in the database"""
         return await self.data.find_codes(codes)
+
+    async def upsert_match(self, code: str) -> MatchSDM | None:
+        raise NotImplementedError("Future method")
 
     async def add_match(self, code: str) -> MatchSDM | None:
         found = await self.find_code(code)
@@ -82,3 +82,39 @@ class BaseManager:
         tasks = [asyncio.create_task(self.add_match(code)) for code in codes]
         matches = await asyncio.gather(*tasks)
         return [m for m in matches if m is not None]
+
+    async def collect_future_matches(self):
+        matches = await self.week.scrape(FUTURE_DAYS)
+        return matches
+
+    async def update_matches_for_week(self):
+        pass
+
+    async def update_matches_for_year(self):
+        pass
+
+
+class TournamentsManagerMixin:
+    def __init__(
+        self,
+        tournament: FlashScoreTournamentScraperInterface,
+        tournament_matches: FlashScoreTournamentMatchesScraperIntefrace,
+    ) -> None:
+        self.tournament = tournament
+        self.tournament_matches = tournament_matches
+
+    async def collect_tournaments_matches(self):
+        pass
+
+
+class PlayersManagerMixin:
+    def __init__(
+        self,
+        player: FlashScorePlayerScraperInterface,
+        player_matches: FlashScorePlayerMatchesScraperInterface,
+    ) -> None:
+        self.player = player
+        self.player_matches = player_matches
+
+    async def collect_players_matches(self):
+        pass

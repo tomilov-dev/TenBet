@@ -13,7 +13,6 @@ from model.service import (
     PlayerSDM,
     MatchCodeSDM,
     TournamentSDM,
-    WeekTournamentSDM,
     RankSDM,
     TennisPlayerDataSDM,
 )
@@ -146,7 +145,7 @@ class FlashScoreTournamentMatchesScraperIntefrace(ScraperInterface, ABC):
 
 class FlashScoreWeeklyMatchesScraper(ScraperInterface, ABC):
     @abstractmethod
-    async def scrape(self, days: list[int]) -> list[WeekTournamentSDM]:
+    async def scrape(self, days: list[int]) -> list[MatchCodeSDM]:
         pass
 
 
