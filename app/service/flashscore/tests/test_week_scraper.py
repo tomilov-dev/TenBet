@@ -20,9 +20,8 @@ class WeekScraperBaseTest:
 
     @pytest.mark.asyncio
     async def test_week_scraper(self, week_scraper: WeeklyMatchesScraper):
-        tournaments = await week_scraper.scrape(FUTURE_DAYS)
-        assert len(tournaments) > 0
-        assert len(tournaments[0].matches) > 0
+        matches = await week_scraper.scrape(FUTURE_DAYS)
+        assert len(matches) > 0
 
     @pytest.mark.asyncio
     async def test_future_matches_scraper(
@@ -30,19 +29,17 @@ class WeekScraperBaseTest:
         week_scraper: WeeklyMatchesScraper,
         match_scraper: MatchScraper,
     ):
-        tournaments = await week_scraper.scrape(FUTURE_DAYS)
-        assert len(tournaments) > 0
+        matches = await week_scraper.scrape(FUTURE_DAYS)
+        assert len(matches) > 0
 
         target_match = None
-        for tournament in tournaments:
+        for match in matches:
             if target_match is not None:
                 break
 
-            if tournament.matches:
-                for match in tournament.matches:
-                    if match.status == StatusCode.get("1"):
-                        target_match = match
-                        break
+            if match.status == StatusCode.get("1"):
+                target_match = match
+                break
 
         if target_match is not None:
             match = await match_scraper.scrape(target_match.code)

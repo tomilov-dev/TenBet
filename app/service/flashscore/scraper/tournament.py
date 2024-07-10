@@ -13,11 +13,19 @@ sys.path.append(str(ROOT_DIR))
 
 
 from model.service import TournamentSDM, TournamentByYearSDM, MatchCodeSDM
-from service.flashscore.common import FlashScoreScraper, SportType, SPORT
+from service.flashscore.common import (
+    FlashScoreScraper,
+    SportType,
+    SPORT,
+    StatusCode,
+    TournamentNameParser,
+)
 from manager.service import (
     FlashScoreTournamentScraperInterface,
     FlashScoreTournamentMatchesScraperIntefrace,
 )
+
+STATUS_CODE_RX = re.compile("¬AC÷(\d+)¬")
 
 
 class TournamentScraper(
@@ -102,7 +110,6 @@ class TournamentScraper(
         limit: int | None = None,
     ) -> list[TournamentSDM]:
         tournaments = await self.scrape_category(category_url)
-
         if limit is not None and limit > 0:
             tournaments = tournaments[: min(limit, len(tournaments))]
 
@@ -126,11 +133,23 @@ class TournamentMatchesParser:
         match_block = match_block.split("initialFeeds['results']")[1]
         raw_matches = match_block.split("¬~AA÷")[1:]
 
+        tournament_fullname = match_block.split("¬~ZA÷")[1]
+        tournament_fullname = tournament_fullname.split("¬ZEE÷")[0]
+        tournament_name_parsed = TournamentNameParser.parse(tournament_fullname)
+
         for raw_match in raw_matches:
             code = raw_match.split("¬AD÷")[0]
             date = raw_match.split("¬AD÷")[1].split("¬ADE÷")[0]
+            status = StatusCode.extract(STATUS_CODE_RX, raw_match)
 
-            matches.append(MatchCodeSDM(date=date, code=code))
+            matches.append(
+                MatchCodeSDM(
+                    **tournament_name_parsed.model_dump(),
+                    date=date,
+                    code=code,
+                    status=status,
+                )
+            )
 
         # 2. Проверка количества матчей
         events_count = response.split("allEventsCount: ")[1]
@@ -156,11 +175,24 @@ class TournamentMatchesParser:
     def parse_other(self, response: str) -> list[MatchCodeSDM]:
         codes: list[MatchCodeSDM] = []
 
+        tournament_fullname = response.split("¬~ZA÷")[1]
+        tournament_fullname = tournament_fullname.split("¬ZEE÷")[0]
+        tournament_name_parsed = TournamentNameParser.parse(tournament_fullname)
+
         raw_matches = response.split("¬~AA÷")[1:]
         for raw_match in raw_matches:
             code = raw_match.split("¬AD÷")[0]
             date = raw_match.split("¬AD÷")[1].split("¬ADE÷")[0]
-            codes.append(MatchCodeSDM(date=date, code=code))
+            status = StatusCode.extract(STATUS_CODE_RX, raw_match)
+
+            codes.append(
+                MatchCodeSDM(
+                    **tournament_name_parsed.model_dump(),
+                    date=date,
+                    code=code,
+                    status=status,
+                )
+            )
 
         return codes
 
@@ -216,14 +248,15 @@ class TournamentMatchesScraper(
 
 async def test():
     category_url = "https://www.flashscore.co.uk/x/req/m_2_5724"
-    tournament_scraper = TournamentScraper()
-    scraper = TournamentMatchesScraper()
+    tournament_scraper = TournamentScraper(SPORT.TENNIS_MEN)
+    scraper = TournamentMatchesScraper(SPORT.TENNIS_MEN)
 
-    # tournaments = await tournament_scraper.scrape(category_url)
+    # tournaments = await tournament_scraper.scrape(category_url, limit=1)
+    # print(tournaments)
 
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/australian-open/results/"
-    # url = "https://www.flashscore.co.uk/tennis/atp-singles/madrid/results/"
-    url = "https://www.flashscore.co.uk/tennis/atp-singles/halle/results/"
+    url = "https://www.flashscore.co.uk/tennis/atp-singles/madrid/results/"
+    # url = "https://www.flashscore.co.uk/tennis/atp-singles/halle/results/"
 
     matches = await scraper.scrape(url)
     print(matches)

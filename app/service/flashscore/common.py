@@ -11,6 +11,7 @@ sys.path.append(str(ROOT_DIR))
 from settings import settings
 from service.base_scraper import BaseScraper
 from manager.service import SportType, SPORT
+from model.service import TournamentNameParsed
 
 
 FS_MAX_RATE = settings.FLASHSCORE_MAX_RATE
@@ -187,6 +188,32 @@ class StatusCode:
         if status in self.finished_set:
             return True
         return False
+
+
+class TournamentNameParser:
+    @classmethod
+    def parse(
+        cls,
+        tournament_fullname: str,
+    ) -> TournamentNameParsed:
+        fullspl = tournament_fullname.split(":")
+        if len(fullspl) >= 2:
+            tournament_category = fullspl[0].strip()
+
+            partspl = fullspl[1].split("-")
+            if len(partspl) == 1:
+                tournament_name = partspl[0].strip()
+                tournament_stage = None
+            elif len(partspl) >= 2:
+                tournament_name = "-".join(partspl[:-1]).strip()
+                tournament_stage = partspl[-1].strip()
+
+        return TournamentNameParsed(
+            tournament_fullname=tournament_fullname,
+            tournament_category=tournament_category,
+            tournament_name=tournament_name,
+            tournament_stage=tournament_stage,
+        )
 
 
 class FlashScoreScraper(BaseScraper, ABC):

@@ -1,9 +1,7 @@
 import re
 import sys
 import asyncio
-from pprint import pprint
 from pathlib import Path
-from bs4 import BeautifulSoup as soup
 
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
@@ -11,11 +9,19 @@ sys.path.append(str(ROOT_DIR))
 
 
 from model.service import PlayerSDM, MatchCodeSDM
-from service.flashscore.common import FlashScoreScraper, SportType, SPORT
+from service.flashscore.common import (
+    FlashScoreScraper,
+    SportType,
+    SPORT,
+    TournamentNameParser,
+    StatusCode,
+)
 from manager.service import (
     FlashScorePlayerScraperInterface,
     FlashScorePlayerMatchesScraperInterface,
 )
+
+STATUS_CODE_RX = re.compile("¬AC÷(\d+)¬")
 
 
 class PlayerScraper(FlashScorePlayerScraperInterface, FlashScoreScraper):
@@ -69,19 +75,27 @@ class PlayerMatchesParser:
 
     def parse_page(self, response: str) -> list[MatchCodeSDM]:
         matches: list[MatchCodeSDM] = []
-        matches_data, headers = [], []
 
         tournaments = response.split("~ZA÷")[1:]
         for tour in tournaments:
-            el = tour.split("¬~AA÷")
-            headers.extend([el[0]]), matches_data.extend(el[1:])
+            splitted = tour.split("¬~AA÷")
+            tournament_fullname = splitted[0].split("¬ZEE÷")[0]
+            tournament_name_parsed = TournamentNameParser.parse(tournament_fullname)
 
-        for index in range(len(matches_data)):
-            match: str = matches_data[index]
-            date = match.split("¬AD÷")[1].split("¬ADE÷")[0]
-            code = match.split("¬AD÷")[0]
+            matches_data = splitted[1:]
+            for match in matches_data:
+                date = match.split("¬AD÷")[1].split("¬ADE÷")[0]
+                code = match.split("¬AD÷")[0]
+                status = StatusCode.extract(STATUS_CODE_RX, match)
 
-            matches.append(MatchCodeSDM(date=date, code=code))
+                matches.append(
+                    MatchCodeSDM(
+                        **tournament_name_parsed.model_dump(),
+                        date=int(date),
+                        code=code,
+                        status=status,
+                    )
+                )
 
         return matches
 
@@ -143,7 +157,7 @@ async def test_player_match_scraper():
     # print(players)
 
     matches = await scraper.scrape(players[0], 2)
-    print(matches)
+    # print(matches)
 
 
 if __name__ == "__main__":

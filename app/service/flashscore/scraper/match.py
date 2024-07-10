@@ -12,7 +12,13 @@ sys.path.append(str(ROOT_DIR))
 
 from model.service import MatchSDM, MatchDescriptionSDM, TimeScoreSDM
 from manager.service import FlashScoreMatchScraperInterface
-from service.flashscore.common import FlashScoreScraper, SportType, SPORT, StatusCode
+from service.flashscore.common import (
+    FlashScoreScraper,
+    SportType,
+    SPORT,
+    StatusCode,
+    TournamentNameParser,
+)
 
 
 STATUS_RX = re.compile(r'\{"DB":(\d+)\}')
@@ -42,17 +48,7 @@ class MatchParser:
                 "content"
             )
 
-            fullspl = tournament_fullname.split(":")
-            if len(fullspl) >= 2:
-                tournament_category = fullspl[0].strip()
-
-                partspl = fullspl[1].split("-")
-                if len(partspl) == 1:
-                    tournament_name = partspl[0].strip()
-                    tournament_stage = None
-                elif len(partspl) >= 2:
-                    tournament_name = "-".join(partspl[:-1]).strip()
-                    tournament_stage = partspl[-1].strip()
+            tournament_name_parsed = TournamentNameParser.parse(tournament_fullname)
 
             full_names = s.find("title").text.split(" | ")[1].split(" - ")
             full_name1 = full_names[0].strip()
@@ -87,10 +83,7 @@ class MatchParser:
                 match_score2 = None
 
             description = MatchDescriptionSDM(
-                tournament_fullname=tournament_fullname,
-                tournament_category=tournament_category,
-                tournament_name=tournament_name,
-                tournament_stage=tournament_stage,
+                **tournament_name_parsed.model_dump(),
                 code_t1=code_t1,
                 code_t2=code_t2,
                 full_name_t1=full_name1,

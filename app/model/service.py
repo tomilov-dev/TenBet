@@ -18,13 +18,15 @@ class OddsType(str):
         return core_schema.no_info_after_validator_function(cls, handler(str))
 
 
-class MatchDescriptionSDM(BaseModel):
-    """Description of FlashScore match"""
-
+class TournamentNameParsed(BaseModel):
     tournament_fullname: str
     tournament_category: str | None = None
     tournament_name: str | None = None
     tournament_stage: str | None = None
+
+
+class MatchDescriptionSDM(TournamentNameParsed):
+    """Description of FlashScore match"""
 
     code_t1: str
     code_t2: str
@@ -68,11 +70,12 @@ class PlayerSDM(BaseModel):
     link: str
 
 
-class MatchCodeSDM(BaseModel):
-    """Data of FlashScore match-code"""
+class MatchCodeSDM(TournamentNameParsed):
+    """Data of FlashScore match-code and match-date"""
 
     date: int
     code: str
+    status: str
 
     def __hash__(self) -> str:
         return hash(str(self.code))
@@ -135,19 +138,6 @@ class TournamentByYearSDM(BaseModel):
         spreadset = codeset - self.codes
         self.events_collected += len(spreadset)
         self.codes.update(spreadset)
-
-
-class WeekMatchSDM(MatchCodeSDM):
-    """Data of FlashScore recent or future match: code, date & status"""
-
-    status: str
-
-
-class WeekTournamentSDM(BaseModel):
-    """Data of FlashScore recent or future tournament"""
-
-    name: str
-    matches: list[WeekMatchSDM]
 
 
 class TennisExplorerIDSDM(BaseModel):
