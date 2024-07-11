@@ -2,11 +2,18 @@ import sys
 import asyncio
 from abc import ABC, abstractmethod
 from pathlib import Path
+from tqdm.asyncio import tqdm_asyncio
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
-from model.service import MatchSDM
+from model.service import (
+    MatchSDM,
+    MatchCodeSDM,
+    TournamentSDM,
+    TournamentByYearUrlSDM,
+    PlayerSDM,
+)
 from model.domain import MatchStatusDTO
 from manager.service import (
     SportType,
@@ -18,10 +25,20 @@ from manager.service import (
     FlashScorePlayerScraperInterface,
     FlashScorePlayerMatchesScraperInterface,
     FUTURE_DAYS,
+    LAST_WEEK_DAYS,
+    StatusCode,
 )
 
 
 class BaseDataInterface(ABC):
+    @abstractmethod
+    async def find_code(self, code: str) -> MatchStatusDTO:
+        pass
+
+    @abstractmethod
+    async def find_codes(self, codes: list[str]) -> list[MatchStatusDTO]:
+        pass
+
     @abstractmethod
     async def add_match(self, match: MatchSDM) -> None:
         pass
@@ -31,15 +48,152 @@ class BaseDataInterface(ABC):
         pass
 
     @abstractmethod
-    async def find_code(self, code: str) -> MatchStatusDTO:
+    async def upsert_future_match(self, match: MatchSDM) -> None:
+        pass
+
+    @abstractmethod
+    async def upsert_future_matches(self, matches: list[MatchSDM]) -> None:
+        pass
+
+
+class MatchCodesFilter:
+    def __init__(
+        self,
+        min_date: int | None = None,
+        max_date: int | None = None,
+        allowed_categories: set[str] | list[str] = [],
+        disallowed_categories: set[str] | list[str] = [],
+        allowed_statuses: set[str] | list[str] = [],
+        disallowed_statuses: set[str] | list[str] = [],
+    ) -> None:
+        self.min_date = min_date
+        self.max_date = max_date
+        self.allowed_categories = self.setup(allowed_categories)
+        self.disallowed_categories = self.setup(disallowed_categories)
+        self.allowed_statuses = self.setup(allowed_statuses)
+        self.disallowed_statuses = self.setup(disallowed_statuses)
+
+    def setup(self, iterable):
+        if isinstance(iterable, set):
+            return iterable
+        return set(iterable)
+
+    def _filter(self, match: MatchCodeSDM) -> bool:
+        if self.min_date and match.date < self.min_date:
+            return False
+        if self.max_date and match.date > self.max_date:
+            return False
+        if (
+            self.allowed_categories
+            and match.tournament_category not in self.allowed_categories
+        ):
+            return False
+        if (
+            self.disallowed_categories
+            and match.tournament_category in self.disallowed_categories
+        ):
+            return False
+        if self.allowed_statuses and match.status not in self.allowed_statuses:
+            return False
+        if self.disallowed_statuses and match.status in self.disallowed_statuses:
+            return False
+
+        return True
+
+    def filter(
+        self,
+        match_codes: list[MatchCodeSDM],
+    ) -> list[MatchCodeSDM]:
+        codemap: dict[str, MatchCodeSDM] = dict()
+        for match_code in match_codes:
+            if match_code.code in codemap:
+                continue
+
+            if self._filter(match_code):
+                codemap[match_code.code] = match_code
+
+        return codemap.values()
+
+
+class PlayerFilter:
+    def __init__(
+        self,
+        min_rank: int | None = None,
+        max_rank: int | None = None,
+    ) -> None:
+        self.min_rank = min_rank
+        self.max_rank = max_rank
+
+    def filter(self, players: list[PlayerSDM]) -> list[PlayerSDM]:
+        if self.max_rank:
+            players = [p for p in players if p.rank <= self.max_rank]
+        if self.min_rank:
+            players = [p for p in players if p.rank >= self.min_rank]
+        return players
+
+
+class TournamentFilter:
+    def __init__(
+        self,
+        tournament_min_year: int | None = None,
+        tournament_max_year: int | None = None,
+        allowed_tournaments_categories: set[str] = set(),
+    ) -> None:
+        self.tournament_min_year = tournament_min_year
+        self.tournament_max_year = tournament_max_year
+        self.allowed_tournaments_categories = self.setup(allowed_tournaments_categories)
+
+    def setup(self, iterable):
+        if isinstance(iterable, set):
+            return iterable
+        return set(iterable)
+
+    def by_year_filter(
+        self,
+        by_year: list[TournamentByYearUrlSDM],
+    ) -> list[TournamentByYearUrlSDM]:
+        if self.tournament_min_year:
+            by_year = [
+                by for by in by_year if by.start_year >= self.tournament_min_year
+            ]
+        if self.tournament_max_year:
+            by_year = [
+                by for by in by_year if by.start_year <= self.tournament_max_year
+            ]
+        return by_year
+
+    def tournament_filter(
+        self,
+        tournaments: list[TournamentSDM],
+    ) -> list[TournamentSDM]:
+        if self.allowed_tournaments_categories:
+            return [
+                t
+                for t in tournaments
+                if t.category in self.allowed_tournaments_categories
+            ]
+        return tournaments
+
+
+class AbstractManager(ABC):
+    @abstractmethod
+    async def find_code(self, code: str) -> MatchStatusDTO | None:
         pass
 
     @abstractmethod
     async def find_codes(self, codes: list[str]) -> list[MatchStatusDTO]:
         pass
 
+    @abstractmethod
+    async def add_match(self, code: str) -> MatchSDM | None:
+        pass
 
-class BaseManager:
+    @abstractmethod
+    async def add_matches(self, codes: list[str]) -> list[MatchSDM] | None:
+        pass
+
+
+class BaseManager(AbstractManager):
     def __init__(
         self,
         sport: SportType,
@@ -55,46 +209,89 @@ class BaseManager:
         self.week = week
         self.odds = odds
 
-    async def find_code(self, code: str) -> MatchSDM | None:
+    async def scrape_match_data(self, code: str) -> MatchSDM:
+        ### Potenial optimization
+        # tasks = [
+        #     asyncio.create_task(self.match.scrape(code)),
+        #     asyncio.create_task(self.odds.scrape(code)),
+        # ]
+        # match_data, odds_data = await asyncio.gather(*tasks)
+
+        match_data = await self.match.scrape(code)
+        odds_data = await self.odds.scrape(code)
+
+        match_data.odds = odds_data
+        return match_data
+
+    async def find_code(self, code: str) -> MatchStatusDTO | None:
         """Return match code and status if exists in the database"""
         return await self.data.find_code(code)
 
-    async def find_codes(self, codes: list[str]) -> list[dict]:
+    async def find_codes(self, codes: list[str]) -> list[MatchStatusDTO]:
         """Return match codes and statuses if codes exists in the database"""
         return await self.data.find_codes(codes)
-
-    async def upsert_match(self, code: str) -> MatchSDM | None:
-        raise NotImplementedError("Future method")
 
     async def add_match(self, code: str) -> MatchSDM | None:
         found = await self.find_code(code)
         if found:
             return None
 
-        match_data = await self.match.scrape(code)
-        odds_data = await self.odds.scrape(code)
-        match_data.odds = odds_data
-
+        match_data = self.scrape_match_data(code)
         await self.data.add_match(match_data)
         return match_data
 
     async def add_matches(self, codes: list[str]) -> list[MatchSDM] | None:
-        tasks = [asyncio.create_task(self.add_match(code)) for code in codes]
-        matches = await asyncio.gather(*tasks)
-        return [m for m in matches if m is not None]
+        founded_codes = await self.find_codes(codes)
+        founded_codes = {c.code for c in founded_codes}
+        codes = [c for c in codes if c not in founded_codes]
+        if not codes:
+            return None
 
-    async def collect_future_matches(self):
-        matches = await self.week.scrape(FUTURE_DAYS)
+        tasks = [asyncio.create_task(self.scrape_match_data(c)) for c in codes]
+        print("Scrape matches:", len(codes))
+        matches_data = await tqdm_asyncio.gather(*tasks)
+
+        await self.data.add_matches(matches_data)
+        return matches_data
+
+    async def collect_future_matches(
+        self,
+        codes_filter: MatchCodesFilter | None,
+    ) -> list[MatchSDM]:
+        """
+        Collect future matches and add them to future_matches collection.
+        Recommended to filter matches with StatusCode.future_set.
+        """
+
+        codes = await self.week.scrape(FUTURE_DAYS)
+        codes = codes_filter.filter(codes) if codes_filter else codes
+
+        tasks = [asyncio.create_task(self.match.scrape(mc.code)) for mc in codes]
+        matches = await asyncio.gather(*tasks)
+        await self.data.upsert_future_matches(matches)
+
         return matches
 
-    async def update_matches_for_week(self):
-        pass
+    async def update_matches_for_week(
+        self,
+        codes_filter: MatchCodesFilter | None,
+    ) -> list[MatchSDM]:
+        """
+        Collect matches for the last week and add them to matches collection.
+        Recommended to filter matches with StatusCode.finished_set.
+        """
+
+        codes = await self.week.scrape(LAST_WEEK_DAYS)
+        codes = codes_filter.filter(codes) if codes_filter else codes
+        matches = await self.add_matches([mc.code for mc in codes])
+
+        return matches
 
     async def update_matches_for_year(self):
         pass
 
 
-class TournamentsManagerMixin:
+class TournamentsManagerMixin(AbstractManager):
     def __init__(
         self,
         tournament: FlashScoreTournamentScraperInterface,
@@ -103,11 +300,70 @@ class TournamentsManagerMixin:
         self.tournament = tournament
         self.tournament_matches = tournament_matches
 
-    async def collect_tournaments_matches(self):
-        pass
+    async def scrape_tournaments(
+        self,
+        category_urls: list[str],
+        limit: int | None = None,
+        tournament_filter: TournamentFilter | None = None,
+    ) -> list[TournamentSDM]:
+        tasks = [
+            asyncio.create_task(self.tournament.scrape(url, limit))
+            for url in category_urls
+        ]
+        tournaments = await asyncio.gather(*tasks)
+        tournaments = [t for sub in tournaments for t in sub]
+
+        if tournament_filter:
+            tournaments = tournament_filter.tournament_filter(tournaments)
+
+        return tournaments
+
+    async def scrape_tournaments_by_year(
+        self,
+        tournaments: list[TournamentSDM],
+        tournament_filter: TournamentFilter | None,
+        codes_filter: MatchCodesFilter | None = None,
+    ) -> list[MatchCodeSDM]:
+        by_year = [by for t in tournaments for by in t.by_year_urls]
+        if tournament_filter:
+            by_year = tournament_filter.by_year_filter(by_year)
+
+        tasks = [
+            asyncio.create_task(self.tournament_matches.scrape(by.url))
+            for by in by_year
+        ]
+
+        codes = await asyncio.gather(*tasks)
+        codes = [c for sub in codes for c in sub]
+        if codes_filter:
+            codes = codes_filter.filter()
+
+        return codes
+
+    async def collect_tournaments_matches(
+        self,
+        category_urls: list[str],
+        limit: int | None = None,
+        tournament_filter: TournamentFilter | None = None,
+        codes_filter: MatchCodesFilter | None = None,
+    ):
+        tournaments = await self.scrape_tournaments(
+            category_urls,
+            limit,
+            tournament_filter,
+        )
+
+        codes = await self.scrape_tournaments_by_year(
+            tournaments,
+            tournament_filter,
+            codes_filter,
+        )
+
+        matches = await self.add_matches([c.code for c in codes])
+        return matches
 
 
-class PlayersManagerMixin:
+class PlayersManagerMixin(AbstractManager):
     def __init__(
         self,
         player: FlashScorePlayerScraperInterface,
@@ -116,5 +372,47 @@ class PlayersManagerMixin:
         self.player = player
         self.player_matches = player_matches
 
-    async def collect_players_matches(self):
-        pass
+    async def scrape_players(
+        self,
+        rank_urls: list[str],
+        player_filter: PlayerFilter | None = None,
+    ) -> list[PlayerSDM]:
+        tasks = [asyncio.create_task(self.player.scrape(url)) for url in rank_urls]
+        players = await asyncio.gather(*tasks)
+        players = [p for sub in players for p in sub]
+        if player_filter:
+            players = player_filter.filter(players)
+        return players
+
+    async def scrape_players_match_codes(
+        self,
+        players: list[PlayerSDM],
+        page_limit: int,
+        codes_filter: MatchCodesFilter | None = None,
+    ) -> list[MatchCodeSDM]:
+        tasks = [
+            asyncio.create_task(self.player_matches.scrape(p, page_limit))
+            for p in players
+        ]
+
+        codes = await asyncio.gather(*tasks)
+        codes = [c for sub in codes for c in sub]
+        codes = codes_filter.filter(codes)
+        return codes
+
+    async def collect_players_matches(
+        self,
+        rank_urls: list[str],
+        page_limit: int = 20,
+        player_filter: PlayerFilter | None = None,
+        codes_filter: MatchCodesFilter | None = None,
+    ) -> list[MatchSDM]:
+        ### we use MatchCodesFilter to get rid of dups along players codes
+        if not codes_filter:
+            codes_filter = MatchCodesFilter()
+
+        players = await self.scrape_players(rank_urls, player_filter)
+        codes = await self.scrape_players_match_codes(players, page_limit, codes_filter)
+
+        matches = await self.add_matches([mc.code for mc in codes])
+        return matches

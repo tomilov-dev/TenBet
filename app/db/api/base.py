@@ -1,12 +1,14 @@
 import sys
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.append(str(ROOT_DIR))
 
 from settings import settings
-from db.core import MATHCES, client
+from db.core import MATHCES, client, FUTURE_MATCHES
 from data.base import RepositoryInterface
 from model.service import MatchSDM
 
@@ -19,6 +21,7 @@ class BaseRepository(RepositoryInterface):
         self.db = db
 
         self.matches_collection = self.db[MATHCES]
+        self.future_matches_collection = self.db[FUTURE_MATCHES]
 
     async def find_code(self, code: str) -> dict:
         return await self.matches_collection.find_one(
@@ -37,4 +40,35 @@ class BaseRepository(RepositoryInterface):
         await self.matches_collection.insert_one(match)
 
     async def add_matches(self, matches: list[dict]) -> None:
-        await self.matches_collection.insert_many(matches)
+        try:
+            await self.matches_collection.insert_many(matches, ordered=False)
+        except BulkWriteError as ex:
+            for error in ex.details.get("writeErrors", []):
+                doc = error.get("op")
+                code = doc.get("code", None)
+                if error.get("code") == 11000:  # Код ошибки дублирования
+                    print(f"Duplicate error for document: {code}")
+                else:
+                    print(f"Other write error: {code}")
+
+    async def upsert_future_match(self, match: dict) -> None:
+        await self.future_matches_collection.update_one(
+            filter={"code": match["code"]},
+            update={"$set": match},
+            upsert=True,
+        )
+
+    async def upsert_future_matches(self, matches: list[dict]) -> None:
+        operations = [
+            UpdateOne(
+                filter={"code": match["code"]},
+                update={"$set": match},
+                upsert=True,
+            )
+            for match in matches
+        ]
+
+        if not operations:
+            return None
+
+        await self.future_matches_collection.bulk_write(operations)

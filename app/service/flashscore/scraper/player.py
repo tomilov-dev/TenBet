@@ -138,7 +138,7 @@ class PlayerMatchesScaper(FlashScorePlayerMatchesScraperInterface, FlashScoreScr
     async def scrape(
         self,
         player: PlayerSDM,
-        page_limit: int = 1,
+        page_limit: int = 20,
     ) -> list[MatchCodeSDM]:
         urls = self.create_urls(player, page_limit)
 
