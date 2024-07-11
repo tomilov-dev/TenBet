@@ -200,13 +200,20 @@ class TournamentNameParser:
         if len(fullspl) >= 2:
             tournament_category = fullspl[0].strip()
 
-            partspl = fullspl[1].split("-")
+            rightspl = ":".join(fullspl[1:])
+            partspl = rightspl.split("-")
             if len(partspl) == 1:
                 tournament_name = partspl[0].strip()
                 tournament_stage = None
-            elif len(partspl) >= 2:
+            elif len(partspl) == 2:
+                tournament_name = partspl[0].strip()
+                tournament_stage = partspl[1].strip()
+            elif len(partspl) > 2:
+                if "final" in partspl[-1]:
+                    tournament_stage = "-".join(partspl[-2:]).strip()
+                else:
+                    tournament_stage = partspl[-1].strip()
                 tournament_name = "-".join(partspl[:-1]).strip()
-                tournament_stage = partspl[-1].strip()
 
         return TournamentNameParsed(
             tournament_fullname=tournament_fullname,

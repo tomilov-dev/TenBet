@@ -138,5 +138,5 @@ async def upload_testcases():
     await asyncio.gather(*tasks)
 
 
-# if __name__ == "__main__":
-#     asyncio.run(upload_testcases())
+if __name__ == "__main__":
+    asyncio.run(upload_testcases())
