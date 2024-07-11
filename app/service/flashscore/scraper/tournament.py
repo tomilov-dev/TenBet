@@ -12,7 +12,12 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 sys.path.append(str(ROOT_DIR))
 
 
-from model.service import TournamentSDM, TournamentByYearSDM, MatchCodeSDM
+from model.service import (
+    TournamentSDM,
+    TournamentByYearSDM,
+    MatchCodeSDM,
+    TournamentByYearLinkSDM,
+)
 from service.flashscore.common import (
     FlashScoreScraper,
     SportType,
@@ -43,7 +48,7 @@ class TournamentScraper(
         FlashScoreTournamentMatchesScraperIntefrace.__init__(self, sport)
         FlashScoreScraper.__init__(self, proxy, debug)
 
-    def parse_page(self, response: str, tournament: TournamentSDM) -> TournamentSDM:
+    def parse_archive(self, response: str, tournament: TournamentSDM) -> TournamentSDM:
         tournament_links: list[str] = []
 
         s = soup(response, "lxml")
@@ -51,8 +56,28 @@ class TournamentScraper(
         for el in _season:
             i = el.find("a")
             if i is not None:
-                link = "https://www.flashscore.co.uk" + i.get("href") + "results/"
-                tournament_links.append(link)
+                name = i.text.strip()
+                years = [int(y) for y in re.findall("\d+", name) if int(y) > 1900]
+
+                start_year = None
+                end_year = None
+                if len(years) == 1:
+                    start_year = years[0]
+                elif len(years) == 2:
+                    start_year = years[0]
+                    end_year = years[1]
+                elif len(years) > 2:
+                    start_year = years[-2]
+                    end_year = years[-1]
+
+                url = "https://www.flashscore.co.uk" + i.get("href") + "results/"
+                by_year = TournamentByYearLinkSDM(
+                    url=url,
+                    start_year=start_year,
+                    end_year=end_year,
+                )
+
+                tournament_links.append(by_year)
 
         tournament.by_year_urls = tournament_links
         return tournament
@@ -85,14 +110,14 @@ class TournamentScraper(
 
         return tournaments
 
-    async def scrape_page(self, tournament: TournamentSDM) -> TournamentSDM:
+    async def scrape_archive(self, tournament: TournamentSDM) -> TournamentSDM:
         """Scrape tournament page"""
 
         response = await self.request(tournament.archive_link)
         if response is None:
             return tournament
 
-        return self.parse_page(response, tournament)
+        return self.parse_archive(response, tournament)
 
     async def scrape_category(self, category_url: str) -> list[TournamentSDM]:
         """Scrape category of tournaments or league"""
@@ -113,7 +138,7 @@ class TournamentScraper(
         if limit is not None and limit > 0:
             tournaments = tournaments[: min(limit, len(tournaments))]
 
-        tasks = [asyncio.create_task(self.scrape_page(t)) for t in tournaments]
+        tasks = [asyncio.create_task(self.scrape_archive(t)) for t in tournaments]
         tournaments = await tqdm_asyncio.gather(*tasks)
 
         return tournaments
@@ -251,14 +276,14 @@ async def test():
     tournament_scraper = TournamentScraper(SPORT.TENNIS_MEN)
     scraper = TournamentMatchesScraper(SPORT.TENNIS_MEN)
 
-    # tournaments = await tournament_scraper.scrape(category_url, limit=1)
+    tournaments = await tournament_scraper.scrape(category_url, limit=1)
     # print(tournaments)
 
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/australian-open/results/"
-    url = "https://www.flashscore.co.uk/tennis/atp-singles/madrid/results/"
+    # url = "https://www.flashscore.co.uk/tennis/atp-singles/madrid/results/"
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/halle/results/"
 
-    matches = await scraper.scrape(url)
+    matches = await scraper.scrape(tournaments[0].by_year_urls[0].url)
     print(matches)
 
 
