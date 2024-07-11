@@ -44,3 +44,4 @@ class ModelDTO(BaseModel):
 class MatchStatusDTO(ModelDTO):
     code: str
     status: str
+    error: bool

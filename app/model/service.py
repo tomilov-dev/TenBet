@@ -94,13 +94,19 @@ class MatchCodeSDM(TournamentNameParsed):
         return list(set(matches))
 
 
+class TournamentByYearLinkSDM(BaseModel):
+    url: str
+    start_year: int | None = None
+    end_year: int | None = None
+
+
 class TournamentSDM(BaseModel):
     """Data of FlashScore tournament"""
 
     category: str
     name: str
     archive_link: str
-    by_year_urls: list[str] = []
+    by_year_urls: list[TournamentByYearLinkSDM] = []
 
 
 class TournamentByYearSDM(BaseModel):
