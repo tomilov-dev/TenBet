@@ -55,18 +55,17 @@ async def add_matches_test():
     ]
 
     matches = await manager.add_matches(codes=codes)
-    print(matches)
+    print(len(matches))
 
 
-async def collect_future_matches_test():
+async def collect_current_matches_test():
     manager = get_manager()
     filter = MatchCodesFilter(
         allowed_categories={"ATP - SINGLES"},
         allowed_statuses=StatusCode.future_set,
     )
-    future_matches = await manager.collect_future_matches(filter)
-
-    print(future_matches)
+    current_matches = await manager.collect_current_matches(filter)
+    print(len(current_matches))
 
 
 async def update_matches_for_week_test():
@@ -77,7 +76,6 @@ async def update_matches_for_week_test():
     )
 
     week_matches = await manager.update_matches_for_week(filter)
-    print(week_matches)
     print(len(week_matches))
 
 
@@ -110,6 +108,18 @@ async def collect_players_matches_test():
     )
 
 
+async def recollect_current_matches_test():
+    manager = get_manager()
+
+    not_finished = await manager.recollect_current_matches()
+    print(len(not_finished))
+
+
 if __name__ == "__main__":
-    asyncio.run(collect_tournaments_matches_test())
-    asyncio.run(collect_players_matches_test())
+    # asyncio.run(collect_current_matches_test())
+    asyncio.run(recollect_current_matches_test())
+
+    # asyncio.run(collect_tournaments_matches_test())
+    # asyncio.run(collect_players_matches_test())
+
+    # asyncio.run(update_matches_for_week_test())

@@ -8,7 +8,7 @@ ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.append(str(ROOT_DIR))
 
 from settings import settings
-from db.core import MATHCES, client, FUTURE_MATCHES
+from db.core import MATHCES, client, CURRENT
 from data.base import RepositoryInterface
 from model.service import MatchSDM
 
@@ -21,7 +21,7 @@ class BaseRepository(RepositoryInterface):
         self.db = db
 
         self.matches_collection = self.db[MATHCES]
-        self.future_matches_collection = self.db[FUTURE_MATCHES]
+        self.current_collection = self.db[CURRENT]
 
     async def find_code(self, code: str) -> dict:
         return await self.matches_collection.find_one(
@@ -51,14 +51,21 @@ class BaseRepository(RepositoryInterface):
                 else:
                     print(f"Other write error: {code}")
 
-    async def upsert_future_match(self, match: dict) -> None:
-        await self.future_matches_collection.update_one(
+    async def get_match(self, code: str) -> dict | None:
+        return await self.matches_collection.find_one({"code": code})
+
+    async def get_matches(self, codes: str) -> list[dict] | None:
+        cursor = self.matches_collection.find({"code": {"$in": codes}})
+        return [m async for m in cursor]
+
+    async def upsert_current_match(self, match: dict) -> None:
+        await self.current_collection.update_one(
             filter={"code": match["code"]},
             update={"$set": match},
             upsert=True,
         )
 
-    async def upsert_future_matches(self, matches: list[dict]) -> None:
+    async def upsert_current_matches(self, matches: list[dict]) -> None:
         operations = [
             UpdateOne(
                 filter={"code": match["code"]},
@@ -71,4 +78,24 @@ class BaseRepository(RepositoryInterface):
         if not operations:
             return None
 
-        await self.future_matches_collection.bulk_write(operations)
+        await self.current_collection.bulk_write(operations)
+
+    async def get_current_match(self, code: str) -> dict | None:
+        return await self.current_collection.find_one({"code": code})
+
+    async def get_current_matches(self, codes: list[str]) -> list[dict] | None:
+        cursor = self.current_collection.find({"code": {"$in": codes}})
+        return [m async for m in cursor]
+
+    async def get_current_codes(self) -> list[dict] | None:
+        cursor = self.current_collection.find(
+            {},
+            {"_id": 1, "code": 1, "status": 1, "error": 1},
+        )
+        return [m async for m in cursor]
+
+    async def delete_current_match(self, code: str) -> None:
+        await self.current_collection.delete_one(filter={"code": code})
+
+    async def delete_current_matches(self, codes: list[str]) -> None:
+        await self.current_collection.delete_many(filter={"code": {"$in": codes}})

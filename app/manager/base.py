@@ -7,6 +7,7 @@ from tqdm.asyncio import tqdm_asyncio
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
+from model.domain import MatchStatusDTO
 from model.service import (
     MatchSDM,
     MatchCodeSDM,
@@ -14,7 +15,6 @@ from model.service import (
     TournamentByYearUrlSDM,
     PlayerSDM,
 )
-from model.domain import MatchStatusDTO
 from manager.service import (
     SportType,
     FlashScoreMatchScraperInterface,
@@ -31,6 +31,7 @@ from manager.service import (
 
 
 class BaseDataInterface(ABC):
+    ### MATCH collection methods
     @abstractmethod
     async def find_code(self, code: str) -> MatchStatusDTO:
         pass
@@ -48,11 +49,40 @@ class BaseDataInterface(ABC):
         pass
 
     @abstractmethod
-    async def upsert_future_match(self, match: MatchSDM) -> None:
+    async def get_match(self, code: str) -> MatchSDM | None:
         pass
 
     @abstractmethod
-    async def upsert_future_matches(self, matches: list[MatchSDM]) -> None:
+    async def get_matches(self, codes: list[str]) -> list[MatchSDM] | None:
+        pass
+
+    ### CURRENT MATCH collection methods
+    @abstractmethod
+    async def upsert_current_match(self, match: MatchSDM) -> None:
+        pass
+
+    @abstractmethod
+    async def upsert_current_matches(self, matches: list[MatchSDM]) -> None:
+        pass
+
+    @abstractmethod
+    async def get_current_match(self, code: str) -> MatchSDM | None:
+        pass
+
+    @abstractmethod
+    async def get_current_matches(self, codes: list[str]) -> list[MatchSDM] | None:
+        pass
+
+    @abstractmethod
+    async def get_current_codes(self) -> list[MatchStatusDTO] | None:
+        pass
+
+    @abstractmethod
+    async def delete_current_match(self, code: str) -> None:
+        pass
+
+    @abstractmethod
+    async def delete_current_matches(self, codes: list[str]) -> None:
         pass
 
 
@@ -236,7 +266,7 @@ class BaseManager(AbstractManager):
         if found:
             return None
 
-        match_data = self.scrape_match_data(code)
+        match_data = await self.scrape_match_data(code)
         await self.data.add_match(match_data)
         return match_data
 
@@ -254,23 +284,54 @@ class BaseManager(AbstractManager):
         await self.data.add_matches(matches_data)
         return matches_data
 
-    async def collect_future_matches(
+    async def collect_current_matches(
         self,
         codes_filter: MatchCodesFilter | None,
     ) -> list[MatchSDM]:
         """
-        Collect future matches and add them to future_matches collection.
-        Recommended to filter matches with StatusCode.future_set.
+        Collect current matches and add them to 'current' collection.
+        Current: live + future matches.
         """
+
+        allowed_statuses = StatusCode.future_set
+        allowed_statuses = allowed_statuses.union(StatusCode.live_set)
+        if not codes_filter:
+            codes_filter = MatchCodesFilter()
+        codes_filter.allowed_statuses = allowed_statuses
 
         codes = await self.week.scrape(FUTURE_DAYS)
         codes = codes_filter.filter(codes) if codes_filter else codes
 
-        tasks = [asyncio.create_task(self.match.scrape(mc.code)) for mc in codes]
+        tasks = [asyncio.create_task(self.scrape_match_data(mc.code)) for mc in codes]
         matches = await asyncio.gather(*tasks)
-        await self.data.upsert_future_matches(matches)
 
+        await self.data.upsert_current_matches(matches)
         return matches
+
+    async def recollect_current_matches(self) -> list[MatchSDM]:
+        current = await self.data.get_current_codes()
+
+        tasks = [asyncio.create_task(self.scrape_match_data(mc.code)) for mc in current]
+        recollected = await asyncio.gather(*tasks)
+
+        finished: list[MatchSDM] = []
+        not_finished: list[MatchSDM] = []
+        for match in recollected:
+            if StatusCode.finished(match.status):
+                finished.append(match)
+            else:
+                not_finished.append(match)
+
+        ### update not finished matches
+        await self.data.upsert_current_matches(not_finished)
+
+        ### delete finished matches from current
+        await self.data.delete_current_matches([m.code for m in finished])
+
+        ### add finished matches in matches
+        await self.data.add_matches(finished)
+
+        return not_finished
 
     async def update_matches_for_week(
         self,
@@ -281,13 +342,19 @@ class BaseManager(AbstractManager):
         Recommended to filter matches with StatusCode.finished_set.
         """
 
+        allowed_statuses = StatusCode.finished_set
+        if not codes_filter:
+            codes_filter = MatchCodesFilter()
+        codes_filter.allowed_statuses = allowed_statuses
+
         codes = await self.week.scrape(LAST_WEEK_DAYS)
         codes = codes_filter.filter(codes) if codes_filter else codes
         matches = await self.add_matches([mc.code for mc in codes])
 
         return matches
 
-    async def update_matches_for_year(self):
+    @abstractmethod
+    async def update_matches_for_year(self) -> list[MatchSDM]:
         pass
 
 
@@ -347,6 +414,11 @@ class TournamentsManagerMixin(AbstractManager):
         tournament_filter: TournamentFilter | None = None,
         codes_filter: MatchCodesFilter | None = None,
     ):
+        """
+        Here we don't need prepared codes_filter to check match on finished feature.
+        It's because we scrape tournament results - matches finished by default.
+        """
+
         tournaments = await self.scrape_tournaments(
             category_urls,
             limit,
@@ -407,6 +479,12 @@ class PlayersManagerMixin(AbstractManager):
         player_filter: PlayerFilter | None = None,
         codes_filter: MatchCodesFilter | None = None,
     ) -> list[MatchSDM]:
+        """
+        Here we need prepared codes_filter to get rid of dups along players codes.
+        But we don't need to check match status on finished feature.
+        It's because we scrape player results - matches finished by default.
+        """
+
         ### we use MatchCodesFilter to get rid of dups along players codes
         if not codes_filter:
             codes_filter = MatchCodesFilter()

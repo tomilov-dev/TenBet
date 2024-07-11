@@ -16,7 +16,7 @@ client = AsyncIOMotorClient(
 
 ### Collections
 MATHCES = "matches"
-FUTURE_MATCHES = "future_matches"
+CURRENT = "current_matches"
 
 
 async def create_match_indexes(db: AsyncIOMotorDatabase):
@@ -50,8 +50,8 @@ async def create_match_indexes(db: AsyncIOMotorDatabase):
     )
 
 
-async def create_future_matches_indexes(db: AsyncIOMotorDatabase):
-    await db[FUTURE_MATCHES].create_indexes(
+async def create_current_indexes(db: AsyncIOMotorDatabase):
+    await db[CURRENT].create_indexes(
         [
             pymongo.IndexModel(
                 [("code", pymongo.ASCENDING)],
@@ -73,10 +73,10 @@ async def init_db():
     match_indexes = [asyncio.create_task(create_match_indexes(db)) for db in databases]
     await asyncio.gather(*match_indexes)
 
-    future_match_indexes = [
-        asyncio.create_task(create_future_matches_indexes(db)) for db in databases
+    current_indexes = [
+        asyncio.create_task(create_current_indexes(db)) for db in databases
     ]
-    await asyncio.gather(*future_match_indexes)
+    await asyncio.gather(*current_indexes)
 
 
 if __name__ == "__main__":

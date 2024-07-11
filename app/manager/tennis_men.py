@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
+from model.service import MatchSDM
 from manager.base import (
     BaseManager,
     BaseDataInterface,
@@ -49,3 +50,6 @@ class TennisMenManager(
         BaseManager.__init__(self, sport, data, match, week, odds)
         TournamentsManagerMixin.__init__(self, tournament, tournament_matches)
         PlayersManagerMixin.__init__(self, player, player_matches)
+
+    async def update_matches_for_year(self) -> list[MatchSDM]:
+        raise NotImplementedError()
