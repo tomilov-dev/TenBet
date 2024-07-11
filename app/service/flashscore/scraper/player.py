@@ -45,6 +45,8 @@ class PlayerScraper(FlashScorePlayerScraperInterface, FlashScoreScraper):
             player_id = element.split("¬PT÷CI¬PV÷")[0].split("¬PT÷PI¬PV÷")[1]
             country = element.split("¬PT÷RA¬PV÷")[0].split("¬PT÷CN¬PV÷")[1]
             rank = element.split("¬PT÷RA¬PV÷")[1].split("¬PT÷RAP¬PV÷")[0]
+            if "¬PT÷" in rank:
+                rank = rank.split("¬PT÷")[0]
             player_link = element.split("¬PT÷PU¬PV÷")[1].split("¬PT÷TP¬PV÷")[0]
             country_id = element.split("¬PT÷CI¬PV÷")[1].split("¬PT÷CN¬PV÷")[0]
 
@@ -148,15 +150,15 @@ class PlayerMatchesScaper(FlashScorePlayerMatchesScraperInterface, FlashScoreScr
 
 
 async def test_player_match_scraper():
-    rank_url = "https://d.flashscore.co.uk/x/feed/ran_dSJr14Y8_1"
+    rank_url = "https://d.flashscore.co.uk/x/feed/ran_dSJr14Y8_2"
 
     player_scraper = PlayerScraper(sport=SPORT.TENNIS_MEN)
     scraper = PlayerMatchesScaper(sport=SPORT.TENNIS_MEN)
 
     players = await player_scraper.scrape(rank_url)
-    # print(players)
+    print(players)
 
-    matches = await scraper.scrape(players[0], 2)
+    # matches = await scraper.scrape(players[0], 2)
     # print(matches)
 
 
