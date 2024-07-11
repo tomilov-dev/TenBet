@@ -16,7 +16,7 @@ from model.service import (
     TournamentSDM,
     TournamentByYearSDM,
     MatchCodeSDM,
-    TournamentByYearLinkSDM,
+    TournamentByYearUrlSDM,
 )
 from service.flashscore.common import (
     FlashScoreScraper,
@@ -71,13 +71,13 @@ class TournamentScraper(
                     end_year = years[-1]
 
                 url = "https://www.flashscore.co.uk" + i.get("href") + "results/"
-                by_year = TournamentByYearLinkSDM(
+                by_year_url = TournamentByYearUrlSDM(
                     url=url,
                     start_year=start_year,
                     end_year=end_year,
                 )
 
-                tournament_links.append(by_year)
+                tournament_links.append(by_year_url)
 
         tournament.by_year_urls = tournament_links
         return tournament
@@ -276,15 +276,13 @@ async def test():
     tournament_scraper = TournamentScraper(SPORT.TENNIS_MEN)
     scraper = TournamentMatchesScraper(SPORT.TENNIS_MEN)
 
-    tournaments = await tournament_scraper.scrape(category_url, limit=1)
-    # print(tournaments)
-
+    tournaments = await tournament_scraper.scrape(category_url, limit=2)
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/australian-open/results/"
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/madrid/results/"
     # url = "https://www.flashscore.co.uk/tennis/atp-singles/halle/results/"
 
-    matches = await scraper.scrape(tournaments[0].by_year_urls[0].url)
-    print(matches)
+    # matches = await scraper.scrape(tournaments[0].by_year_urls[0].url)
+    # print(matches)
 
 
 if __name__ == "__main__":

@@ -34,6 +34,12 @@ class BetExplorerParser:
 
             odds = re.findall(r'data-odd=\\"(.*?)\\"', book)
             odds = odds[:2] if odds else odds
+            if len(odds) < 2:
+                continue
+
+            odds_t1 = odds[-2]
+            odds_t2 = odds[-1]
+
             odds_date = re.search(r'data-created=\\"(.*?)\\"', book).group(1)
             odds_date = datetime.strptime(odds_date, "%d,%m,%Y,%H,%M")
             odds_date = int(odds_date.timestamp()) - 3600  # transform to gmt-0
@@ -53,8 +59,8 @@ class BetExplorerParser:
 
             book_odds = BookOddsHASDM(
                 name=name,
-                odds_t1=odds[0],
-                odds_t2=odds[1],
+                odds_t1=odds_t1,
+                odds_t2=odds_t2,
                 odds_date=odds_date,
                 open_odds_t1=open_odds[0],
                 open_odds_t2=open_odds[1],
@@ -83,6 +89,13 @@ class BetExplorerParser:
             name = re.search(r"'event-name'\: '(.*?)',", book).group(1)
 
             odds = re.findall(r'data-odd=\\"(.*?)\\"', book)
+            if len(odds) < 3:
+                continue
+
+            odds_t1 = odds[-3]
+            odds_x = odds[-2]
+            odds_t2 = odds[-1]
+
             odds_date = re.search(r'data-created=\\"(.*?)\\"', book).group(1)
             odds_date = datetime.strptime(odds_date, "%d,%m,%Y,%H,%M")
             odds_date = int(odds_date.timestamp()) - 3600  # transform to gmt-0
@@ -102,9 +115,9 @@ class BetExplorerParser:
 
             book_odds = BookOdds1x2SDM(
                 name=name,
-                odds_t1=odds[0],
-                odds_x=odds[1],
-                odds_t2=odds[2],
+                odds_t1=odds_t1,
+                odds_x=odds_x,
+                odds_t2=odds_t2,
                 odds_date=odds_date,
                 open_odds_t1=open_odds[0],
                 open_odds_x=open_odds[1],
@@ -215,8 +228,21 @@ async def test_ha():
     print(data)
 
 
+async def test_ha_error():
+    scraper = BetExplorerScraper(SPORT.TENNIS_MEN)
+    codes = [
+        "OtjFfQkT",
+        "z74SqPeJ",
+        "StTFtIjn",
+        "Spk9PQLn",
+    ]
+
+    data = await scraper.scrape_ha(codes[0])
+    print(data)
+
+
 async def test_ha_empty():
-    scraper = BetExplorerScraper()
+    scraper = BetExplorerScraper(SPORT.TENNIS_MEN)
 
     code = "Mou7sEg6"
     data = await scraper.scrape_ha(code)
@@ -224,7 +250,7 @@ async def test_ha_empty():
 
 
 async def test_1x2():
-    scraper = BetExplorerScraper()
+    scraper = BetExplorerScraper(SPORT.FOOTBALL)
 
     code = "hph7lsj3"
     data = await scraper.scrape_1x2(code)
@@ -232,4 +258,4 @@ async def test_1x2():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_ha())
+    asyncio.run(test_1x2())

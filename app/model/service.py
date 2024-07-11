@@ -94,7 +94,7 @@ class MatchCodeSDM(TournamentNameParsed):
         return list(set(matches))
 
 
-class TournamentByYearLinkSDM(BaseModel):
+class TournamentByYearUrlSDM(BaseModel):
     url: str
     start_year: int | None = None
     end_year: int | None = None
@@ -106,7 +106,7 @@ class TournamentSDM(BaseModel):
     category: str
     name: str
     archive_link: str
-    by_year_urls: list[TournamentByYearLinkSDM] = []
+    by_year_urls: list[TournamentByYearUrlSDM] = []
 
 
 class TournamentByYearSDM(BaseModel):
