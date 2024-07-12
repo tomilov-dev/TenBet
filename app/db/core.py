@@ -73,6 +73,7 @@ async def init_db():
     match_indexes = [asyncio.create_task(create_match_indexes(db)) for db in databases]
     await asyncio.gather(*match_indexes)
 
+    ### current means matches that are not finished yet (future or alive)
     current_indexes = [
         asyncio.create_task(create_current_indexes(db)) for db in databases
     ]

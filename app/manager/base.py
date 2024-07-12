@@ -8,6 +8,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
 from model.domain import MatchStatusDTO
+from model.prediction import MatchPredictionHA, MatchPrediction1x2
 from model.service import (
     MatchSDM,
     MatchCodeSDM,
@@ -74,6 +75,10 @@ class BaseDataInterface(ABC):
         pass
 
     @abstractmethod
+    async def get_all_current_matches(self) -> list[MatchSDM] | None:
+        pass
+
+    @abstractmethod
     async def get_current_codes(self) -> list[MatchStatusDTO] | None:
         pass
 
@@ -83,6 +88,15 @@ class BaseDataInterface(ABC):
 
     @abstractmethod
     async def delete_current_matches(self, codes: list[str]) -> None:
+        pass
+
+
+class BasePredictorInterface(ABC):
+    @abstractmethod
+    async def predict(
+        self,
+        code: str,
+    ) -> MatchPredictionHA | MatchPrediction1x2:
         pass
 
 
@@ -231,6 +245,7 @@ class BaseManager(AbstractManager):
         match: FlashScoreMatchScraperInterface,
         week: FlashScoreWeeklyMatchesScraper,
         odds: BetExplorerScraperInterface,
+        predictor: BasePredictorInterface,
     ) -> None:
         self.sport = sport
         self.data = data
@@ -238,6 +253,8 @@ class BaseManager(AbstractManager):
         self.match = match
         self.week = week
         self.odds = odds
+
+        self.predictor = predictor
 
     async def scrape_match_data(self, code: str) -> MatchSDM:
         ### Potenial optimization
@@ -280,6 +297,15 @@ class BaseManager(AbstractManager):
     async def find_codes(self, codes: list[str]) -> list[MatchStatusDTO]:
         """Return match codes and statuses if codes exists in the database"""
         return await self.data.find_codes(codes)
+
+    async def get_match(self, code: str) -> MatchSDM | None:
+        return await self.data.get_match(code)
+
+    async def get_all_current_matches(self) -> list[MatchSDM] | None:
+        return await self.data.get_all_current_matches()
+
+    async def get_prediction(self, code: str) -> MatchPredictionHA | MatchPrediction1x2:
+        return await self.predictor.predict(code)
 
     async def add_match(self, code: str) -> MatchSDM | None:
         found = await self.find_code(code)

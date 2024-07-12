@@ -87,6 +87,10 @@ class BaseRepository(RepositoryInterface):
         cursor = self.current_collection.find({"code": {"$in": codes}})
         return [m async for m in cursor]
 
+    async def get_all_current_matches(self) -> list[dict] | None:
+        cursor = self.current_collection.find()
+        return [m async for m in cursor]
+
     async def get_current_codes(self) -> list[dict] | None:
         cursor = self.current_collection.find(
             {},

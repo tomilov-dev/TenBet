@@ -53,6 +53,10 @@ class RepositoryInterface(ABC):
         pass
 
     @abstractmethod
+    async def get_all_current_matches(self) -> list[dict] | None:
+        pass
+
+    @abstractmethod
     async def get_current_codes(self) -> list[dict] | None:
         pass
 
@@ -112,7 +116,12 @@ class BaseData(BaseDataInterface):
 
     async def get_current_matches(self, codes: list[str]) -> list[MatchSDM] | None:
         currents = await self.db.get_current_matches(codes)
-        currents = [MatchSDM(**f) for f in currents]
+        currents = [MatchSDM(**current) for current in currents]
+        return currents
+
+    async def get_all_current_matches(self) -> list[MatchSDM] | None:
+        currents = await self.db.get_all_current_matches()
+        currents = [MatchSDM(**current) for current in currents]
         return currents
 
     async def get_current_codes(self) -> list[MatchStatusDTO] | None:

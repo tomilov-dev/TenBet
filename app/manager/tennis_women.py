@@ -27,11 +27,11 @@ from manager.service import (
 )
 
 
-class TennisMenDataInterface(BaseDataInterface):
+class TennisWomenDataInterface(BaseDataInterface):
     pass
 
 
-class TennisMenManager(
+class TennisWomenManager(
     BaseManager,
     TournamentsManagerMixin,
     PlayersManagerMixin,

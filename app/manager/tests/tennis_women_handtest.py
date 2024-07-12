@@ -6,11 +6,12 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from manager.service import SPORT, StatusCode
 from manager.base import MatchCodesFilter, TournamentFilter, PlayerFilter
-from manager.tennis_men import TennisMenManager
+from manager.tennis_women import TennisWomenManager
 
 ## dependencies
-from data.tennis_men import TennisMenData
-from db.api.tennis_men import TennisMenRepository
+from data.tennis_women import TennisWomenData
+from db.api.tennis_women import TennisWomenRepository
+from ml.tennis_women.random import RandomTennisWomenPredictor
 from service.flashscore.scraper.match import MatchScraper
 from service.flashscore.scraper.tournament import TournamentScraper
 from service.flashscore.scraper.tournament import TournamentMatchesScraper
@@ -20,11 +21,13 @@ from service.flashscore.scraper.week import WeeklyMatchesScraper
 from service.betexplorer.scraper import BetExplorerScraper
 
 
-def get_manager() -> TennisMenManager:
-    sport = SPORT.TENNIS_MEN
-    return TennisMenManager(
+def get_manager() -> TennisWomenManager:
+    sport = SPORT.TENNIS_WOMEN
+    db = TennisWomenRepository()
+    data = TennisWomenData(db)
+    return TennisWomenManager(
         sport=sport,
-        data=TennisMenData(TennisMenRepository()),
+        data=data,
         match=MatchScraper(sport=sport),
         week=WeeklyMatchesScraper(sport=sport),
         odds=BetExplorerScraper(sport=sport),
@@ -32,12 +35,13 @@ def get_manager() -> TennisMenManager:
         tournament_matches=TournamentMatchesScraper(sport=sport),
         player=PlayerScraper(sport=sport),
         player_matches=PlayerMatchesScaper(sport=sport),
+        predictor=RandomTennisWomenPredictor(sport=sport, data=data),
     )
 
 
 async def add_match_test():
     manager = get_manager()
-    code = "K831uSar"
+    code = "Yq5BO72S"
 
     match = await manager.add_match(code=code)
     print(match)
@@ -46,22 +50,25 @@ async def add_match_test():
 async def add_matches_test():
     manager = get_manager()
     codes = [
-        "WGndc4yp",
-        "nBkA68Ec",
-        "4MfHpTtH",
-        "YTzs40z9",
-        "Q9bfL1fc",
-        "K831uSar",
+        "QcO18Z2n",
+        "zPsFNJu1",
+        "UVpnRkml",
+        "GzLYPSjf",
+        "KnvC2bld",
+        "Yq5BO72S",
     ]
 
     matches = await manager.add_matches(codes=codes)
-    print(len(matches))
+    if matches:
+        print(len(matches))
+    else:
+        print(0)
 
 
 async def collect_current_matches_test():
     manager = get_manager()
     filter = MatchCodesFilter(
-        allowed_categories={"ATP - SINGLES"},
+        allowed_categories={"WTA - SINGLES"},
         allowed_statuses=StatusCode.future_set,
     )
     current_matches = await manager.collect_current_matches(filter)
@@ -71,7 +78,7 @@ async def collect_current_matches_test():
 async def update_matches_for_week_test():
     manager = get_manager()
     filter = MatchCodesFilter(
-        allowed_categories={"ATP - SINGLES"},
+        allowed_categories={"WTA - SINGLES"},
         allowed_statuses=StatusCode.finished_set,
     )
 
@@ -82,7 +89,7 @@ async def update_matches_for_week_test():
 async def collect_tournaments_matches_test():
     manager = get_manager()
 
-    category_urls = ["https://www.flashscore.co.uk/x/req/m_2_5724"]
+    category_urls = ["https://www.flashscore.co.uk/x/req/m_2_5725"]
 
     tfilter = TournamentFilter(2022, 2024)
     await manager.collect_tournaments_matches(
@@ -95,14 +102,14 @@ async def collect_players_matches_test():
     manager = get_manager()
 
     rank_urls = [
-        "https://d.flashscore.co.uk/x/feed/ran_dSJr14Y8_1",
-        "https://d.flashscore.co.uk/x/feed/ran_dSJr14Y8_2",
+        "https://local-uk.flashscore.ninja/5/x/feed/ran_hfDiar3L_1",
+        "https://local-uk.flashscore.ninja/5/x/feed/ran_hfDiar3L_2",
     ]
 
     pfilter = PlayerFilter(min_rank=1, max_rank=200)
     cfilter = MatchCodesFilter(
         min_date=1640916794,
-        allowed_categories={"ATP - SINGLES"},
+        allowed_categories={"WTA - SINGLES"},
     )
 
     await manager.collect_players_matches(
@@ -121,10 +128,13 @@ async def recollect_current_matches_test():
 
 
 if __name__ == "__main__":
+    # asyncio.run(add_match_test())
+    # asyncio.run(add_matches_test())
+
     # asyncio.run(collect_current_matches_test())
-    # asyncio.run(recollect_current_matches_test())
+    # asyncio.run(update_matches_for_week_test())
 
     # asyncio.run(collect_tournaments_matches_test())
     asyncio.run(collect_players_matches_test())
 
-    # asyncio.run(update_matches_for_week_test())
+    # asyncio.run(recollect_current_matches_test())
