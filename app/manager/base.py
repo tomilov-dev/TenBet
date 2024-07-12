@@ -253,6 +253,9 @@ class BaseManager(AbstractManager):
             odds_data = await self.odds.scrape(code)
 
             match_data.odds = odds_data
+            if match_data.status is None:
+                match_data.status = StatusCode.UNDEFINED
+
             return match_data
 
         except Exception as ex:
@@ -265,6 +268,9 @@ class BaseManager(AbstractManager):
                 )
             else:
                 match_data.odds_error = True
+                if match_data.status is None:
+                    match_data.status = StatusCode.UNDEFINED
+
             return match_data
 
     async def find_code(self, code: str) -> MatchStatusDTO | None:
@@ -481,7 +487,8 @@ class PlayersManagerMixin(AbstractManager):
             for p in players
         ]
 
-        codes = await asyncio.gather(*tasks)
+        print("Scrape match codes from players:", len(players))
+        codes = await tqdm_asyncio.gather(*tasks)
         codes = [c for sub in codes for c in sub]
         codes = codes_filter.filter(codes)
         return codes

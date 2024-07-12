@@ -99,11 +99,17 @@ async def collect_players_matches_test():
         "https://d.flashscore.co.uk/x/feed/ran_dSJr14Y8_2",
     ]
 
-    filter = PlayerFilter(min_rank=1, max_rank=10)
-    matches = await manager.collect_players_matches(
+    pfilter = PlayerFilter(min_rank=1, max_rank=200)
+    cfilter = MatchCodesFilter(
+        min_date=1640916794,
+        allowed_categories={"ATP - SINGLES"},
+    )
+
+    await manager.collect_players_matches(
         rank_urls,
-        page_limit=1,
-        player_filter=filter,
+        page_limit=5,
+        player_filter=pfilter,
+        codes_filter=cfilter,
     )
 
 
@@ -118,7 +124,7 @@ if __name__ == "__main__":
     # asyncio.run(collect_current_matches_test())
     # asyncio.run(recollect_current_matches_test())
 
-    asyncio.run(collect_tournaments_matches_test())
-    # asyncio.run(collect_players_matches_test())
+    # asyncio.run(collect_tournaments_matches_test())
+    asyncio.run(collect_players_matches_test())
 
     # asyncio.run(update_matches_for_week_test())

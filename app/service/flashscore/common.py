@@ -84,10 +84,13 @@ class FlashScoreScraper(BaseScraper, ABC):
     async def request(self, url: str) -> str | None:
         try:
             return await super().request(url)
+
         except ServerDisconnectedError as ex:
             print(ex)
+
         except ClientOSError as ex:
             print(ex)
+
         return None
 
     @abstractmethod

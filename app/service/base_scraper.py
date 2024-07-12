@@ -141,3 +141,6 @@ class BaseScraper(ABC):
 
             except ClientProxyConnectionError as ex:
                 print(ex)
+
+        else:
+            raise NotWorkingProxy("Proxy connection error")
