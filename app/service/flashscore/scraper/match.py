@@ -23,6 +23,9 @@ from service.flashscore.common import (
 
 STATUS_RX = re.compile(r'\{"DB":(\d+)\}')
 
+PC_RX = re.compile(r"(\d+)\%")
+PCD_PX = re.compile(r"(\d+)\s*\/\s*(\d+)")
+
 
 class MatchParser:
     def __init__(self, sport: SportType) -> None:
@@ -161,92 +164,18 @@ class MatchParser:
 
         return match
 
-    def get_times_score__old(
+    def preprocess_stat(
         self,
-        match: MatchSDM,
-        response: str,
-    ) -> MatchSDM:
-        time_scores: list[TimeScoreSDM] = []
-        if response:
-            is_time = 1
-            is_zone = 1
-            is_sets = 0
-
-            try:
-                zstart = "AC÷3¬B"
-                zone = re.findall(rf"{zstart}(.*\:\b..)", response)[0]
-            except Exception:
-                is_time = 0
-                try:
-                    zstart, zend = "AC÷3¬B", "~A1÷"
-                    zone = re.findall(rf"{zstart}(.*){zend}", response)[0]
-                except Exception:
-                    is_zone = 0
-
-            chr_int = [str(x) for x in range(10)]
-            # Определение зон по сетам
-            if is_zone:
-                if is_time:
-                    is_sets = 1
-                    sets = re.split(r"\d:\d{2}|¬~RB÷", zone)
-                    sets = [s for s in sets if len(s) > 0]
-                    if (sets[-1][-1] != "¬") and (sets[-1][-1] in chr_int):
-                        new_value = sets[-1] + "¬"
-                        sets[-1] = new_value
-                else:
-                    is_sets = 1
-                    sets = re.split("~", zone)
-                    sets = [s for s in sets if len(s) > 0]
-
-            # Извлечение статистики
-            if is_sets:
-                for i in range(5):
-                    if i < len(sets):
-                        stat = re.findall(r"÷(\d*)¬", sets[i])
-                        if len(stat) == 2:
-                            time_t1 = stat[0]
-                            time_t2 = stat[1]
-                            tiebreak_t1 = None
-                            tiebreak_t2 = None
-                        else:
-                            time_t1 = stat[0]
-                            time_t2 = stat[2]
-                            tiebreak_t1 = stat[1]
-                            tiebreak_t2 = stat[3]
-
-                        time_score = TimeScoreSDM(
-                            score_t1=time_t1,
-                            score_t2=time_t2,
-                            tiebreak_t1=tiebreak_t1,
-                            tiebreak_t2=tiebreak_t2,
-                        )
-                        time_scores.append(time_score)
-
-            if is_time:
-                times = re.findall(r"÷(.{1,2}\:.{2})", zone)
-                times = [t for t in times if len(t) > 0]
-                match.playtime = times[-1]
-
-                times = times[:-1]
-                # Извлечение времени
-                for i in range(5):
-                    if i < len(times):
-                        if len(time_scores) > i:
-                            time_score = time_scores[i]
-                        time_score.playtime = times[i]
-                    else:
-                        pass
-
-        for i in range(len(time_scores), 5):
-            time_scores.append(None)
-
-        match.time1 = time_scores[0]
-        match.time2 = time_scores[1]
-        match.time3 = time_scores[2]
-        match.time4 = time_scores[3]
-        match.time5 = time_scores[4]
-
-        return match
+        value: int,
+    ) -> int | tuple[int, int]:
+        if "%" in value and "(" in value:
+            out1, out2 = PCD_PX.findall(value)[0]
+            return [int(out1), int(out2)]
+        elif "%" in value:
+            output = float(PC_RX.search(value).group(1))
+        else:
+            output = float(value)
+        return output
 
     def get_statistics(
         self,
@@ -259,8 +188,6 @@ class MatchParser:
         statistics2 = {}
 
         stat_parts_by_iter = response.split("SE÷")[1:]
-        # print(stat_parts_by_iter)
-
         for iter in range(len(stat_parts_by_iter)):
             stat_part = stat_parts_by_iter[iter]
             stats = stat_part.split(stat_splitter)
@@ -279,8 +206,8 @@ class MatchParser:
                 else:
                     time_name = f"time{iter}"
 
-                stats1_time[stat_names[i]] = stats1[i]
-                stats2_time[stat_names[i]] = stats2[i]
+                stats1_time[stat_names[i]] = self.preprocess_stat(stats1[i])
+                stats2_time[stat_names[i]] = self.preprocess_stat(stats2[i])
 
             statistics1[time_name] = stats1_time
             statistics2[time_name] = stats2_time
