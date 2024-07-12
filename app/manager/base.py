@@ -247,11 +247,25 @@ class BaseManager(AbstractManager):
         # ]
         # match_data, odds_data = await asyncio.gather(*tasks)
 
-        match_data = await self.match.scrape(code)
-        odds_data = await self.odds.scrape(code)
+        try:
+            match_data = None
+            match_data = await self.match.scrape(code)
+            odds_data = await self.odds.scrape(code)
 
-        match_data.odds = odds_data
-        return match_data
+            match_data.odds = odds_data
+            return match_data
+
+        except Exception as ex:
+            print("Exception at code", code, ex)
+            if match_data is None:
+                match_data = MatchSDM(
+                    code=code,
+                    error=True,
+                    status=StatusCode.UNDEFINED,
+                )
+            else:
+                match_data.odds_error = True
+            return match_data
 
     async def find_code(self, code: str) -> MatchStatusDTO | None:
         """Return match code and status if exists in the database"""

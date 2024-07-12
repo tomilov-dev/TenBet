@@ -84,10 +84,9 @@ async def collect_tournaments_matches_test():
 
     category_urls = ["https://www.flashscore.co.uk/x/req/m_2_5724"]
 
-    tfilter = TournamentFilter(2020, 2022)
+    tfilter = TournamentFilter(2022, 2024)
     await manager.collect_tournaments_matches(
         category_urls,
-        limit=2,
         tournament_filter=tfilter,
     )
 
@@ -117,9 +116,9 @@ async def recollect_current_matches_test():
 
 if __name__ == "__main__":
     # asyncio.run(collect_current_matches_test())
-    asyncio.run(recollect_current_matches_test())
+    # asyncio.run(recollect_current_matches_test())
 
-    # asyncio.run(collect_tournaments_matches_test())
+    asyncio.run(collect_tournaments_matches_test())
     # asyncio.run(collect_players_matches_test())
 
     # asyncio.run(update_matches_for_week_test())

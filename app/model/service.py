@@ -221,6 +221,7 @@ class MatchSDM(BaseModel):
     """Data of FlashScore match"""
 
     code: str
+    ### error means error in FS scraper
     error: bool = False
     status: str | None = None
 
@@ -234,6 +235,8 @@ class MatchSDM(BaseModel):
 
     description: MatchDescriptionSDM | None = None
     odds: MatchOddsHASDM | MatchOdds1x2SDM | None = None
+    ### odds_error means error in BE scraper
+    odds_error: bool = False
 
     statistics1: dict = {}
     statistics2: dict = {}
