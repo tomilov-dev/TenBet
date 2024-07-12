@@ -20,6 +20,8 @@ class OddsType(str):
 
 class TournamentNameParsed(BaseModel):
     tournament_fullname: str
+
+    qualification: bool = False
     tournament_category: str | None = None
     tournament_name: str | None = None
     tournament_stage: str | None = None

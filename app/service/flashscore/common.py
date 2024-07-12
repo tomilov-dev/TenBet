@@ -24,6 +24,10 @@ class TournamentNameParser:
         cls,
         tournament_fullname: str,
     ) -> TournamentNameParsed:
+        qualification = False
+        if "qualifi" in tournament_fullname.lower():
+            qualification = True
+
         fullspl = tournament_fullname.split(":")
         if len(fullspl) >= 2:
             tournament_category = fullspl[0].strip()
@@ -45,6 +49,7 @@ class TournamentNameParser:
 
         return TournamentNameParsed(
             tournament_fullname=tournament_fullname,
+            qualification=qualification,
             tournament_category=tournament_category,
             tournament_name=tournament_name,
             tournament_stage=tournament_stage,
