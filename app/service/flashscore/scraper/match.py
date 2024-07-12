@@ -133,7 +133,10 @@ class MatchParser:
                 tiebreak_t2 = None
 
             if time:
-                time = time.group(1)
+                time = time.group(1).split(":")
+                htime = int(time[0].strip()) * 60
+                mtime = int(time[1].strip())
+                time = htime + mtime
             else:
                 time = None
 
@@ -148,7 +151,10 @@ class MatchParser:
 
         total_playtime = re.findall(r"R.÷(\d+:\d+)", response)
         if total_playtime:
-            total_playtime = total_playtime[-1]
+            total_playtime = total_playtime[-1].split(":")
+            htime = int(total_playtime[0].strip()) * 60
+            mtime = int(total_playtime[1].strip())
+            total_playtime = htime + mtime
         else:
             total_playtime = None
 
