@@ -58,7 +58,7 @@ class TimeScoreSDM(BaseModel):
     tiebreak_t1: int | None = None
     tiebreak_t2: int | None = None
 
-    playtime: str | None = None
+    playtime: int | None = None
 
 
 class PlayerSDM(BaseModel):
@@ -225,7 +225,7 @@ class MatchSDM(BaseModel):
     error: bool = False
     status: str | None = None
 
-    playtime: str | None = None
+    playtime: int | None = None
 
     time1: TimeScoreSDM | None = None
     time2: TimeScoreSDM | None = None
@@ -235,8 +235,6 @@ class MatchSDM(BaseModel):
 
     description: MatchDescriptionSDM | None = None
     odds: MatchOddsHASDM | MatchOdds1x2SDM | None = None
-    ### odds_error means error in BE scraper
-    odds_error: bool = False
 
     statistics1: dict = {}
     statistics2: dict = {}

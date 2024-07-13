@@ -57,6 +57,15 @@ class BaseDataInterface(ABC):
     async def get_matches(self, codes: list[str]) -> list[MatchSDM] | None:
         pass
 
+    @abstractmethod
+    async def get_filtered_matches(
+        self,
+        match_filter: "MatchFilter",
+        limit: int | None = None,
+        skip: int | None = None,
+    ) -> list[MatchSDM] | None:
+        pass
+
     ### CURRENT MATCH collection methods
     @abstractmethod
     async def upsert_current_match(self, match: MatchSDM) -> None:
@@ -98,6 +107,65 @@ class BasePredictorInterface(ABC):
         code: str,
     ) -> MatchPredictionHA | MatchPrediction1x2:
         pass
+
+
+class MatchFilter:
+    def __init__(
+        self,
+        error: bool | None = None,
+        odds_error: str | None = None,
+        statuses: list[str] | set[str] | None = None,
+        min_date: int | None = None,
+        max_date: int | None = None,
+        tournament_categories: list[str] | set[str] | None = None,
+        team_codes: list[str] | None = None,
+    ) -> None:
+        self.error = error
+        self.odds_error = odds_error
+        self.min_date = min_date
+        self.max_date = max_date
+
+        self.statuses = self.setup(statuses)
+        self.tournament_categories = self.setup(tournament_categories)
+        self.team_codes = self.setup(team_codes)
+
+    def setup(self, iterable):
+        if iterable is None:
+            return iterable
+        elif isinstance(iterable, set):
+            return iterable
+        return set(iterable)
+
+    def dump(self) -> dict:
+        filters = {}
+        if self.error is not None:
+            filters.update({"error": self.error})
+        if self.statuses is not None:
+            filters.update({"status": {"$in": list(self.statuses)}})
+        if self.odds_error is not None:
+            filters.update({"odds.error": self.odds_error})
+        if self.min_date is not None:
+            filters.update({"description.start_date": {"$gte": self.min_date}})
+        if self.max_date is not None:
+            filters.update({"description.start_date": {"$lte": self.max_date}})
+        if self.tournament_categories is not None:
+            filters.update(
+                {"tournament_category": {"$in": list(self.tournament_categories)}}
+            )
+        if self.team_codes is not None:
+            filters.update(
+                {
+                    "$or": [
+                        {"description.code_t1": {"$in": list(self.team_codes)}},
+                        {"description.code_t2": {"$in": list(self.team_codes)}},
+                    ]
+                }
+            )
+        return filters
+
+    def filter(self, matches: list[MatchSDM]) -> list[MatchSDM]:
+        # return matches
+        raise NotImplementedError
 
 
 class MatchCodesFilter:
@@ -283,10 +351,8 @@ class BaseManager(AbstractManager):
                     error=True,
                     status=StatusCode.UNDEFINED,
                 )
-            else:
-                match_data.odds_error = True
-                if match_data.status is None:
-                    match_data.status = StatusCode.UNDEFINED
+            if match_data.status is None:
+                match_data.status = StatusCode.UNDEFINED
 
             return match_data
 

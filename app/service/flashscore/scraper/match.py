@@ -327,7 +327,7 @@ async def test_tennis_women():
 
 async def test_football():
     scraper = MatchScraper(sport=SPORT.FOOTBALL)
-    code = "M1w8YmqE"
+    code = "GziuczET"
 
     data = await scraper.scrape(code)
     print(data)
@@ -350,4 +350,4 @@ async def test_backetball():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_tennis_men())
+    asyncio.run(test_football())

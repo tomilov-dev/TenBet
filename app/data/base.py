@@ -6,7 +6,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 from model.service import MatchSDM
 from model.domain import MatchStatusDTO
-from manager.base import BaseDataInterface
+from manager.base import BaseDataInterface, MatchFilter
 
 
 class RepositoryInterface(ABC):
@@ -33,6 +33,14 @@ class RepositoryInterface(ABC):
 
     @abstractmethod
     async def get_matches(self, codes: list[str]) -> list[dict] | None:
+        pass
+
+    async def get_filtered_matches(
+        self,
+        match_filter: dict,
+        limit: int | None = None,
+        skip: int | None = None,
+    ) -> list[dict] | None:
         pass
 
     ### CURRENT collection methods
@@ -100,6 +108,18 @@ class BaseData(BaseDataInterface):
         matches = await self.db.get_matches(codes)
         matches = [MatchSDM(**m) for m in matches]
         return matches
+
+    async def get_filtered_matches(
+        self,
+        match_filter: MatchFilter,
+        limit: int | None = None,
+        skip: int | None = None,
+    ) -> list[MatchSDM] | None:
+        """Return filtered and sorted matches"""
+
+        filters = match_filter.dump()
+        matches = await self.db.get_filtered_matches(filters, limit, skip)
+        return [MatchSDM(**m) for m in matches]
 
     async def upsert_current_match(self, match: MatchSDM) -> None:
         await self.db.upsert_current_match(match.model_dump())

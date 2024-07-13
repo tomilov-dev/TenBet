@@ -86,10 +86,10 @@ class FlashScoreScraper(BaseScraper, ABC):
             return await super().request(url)
 
         except ServerDisconnectedError as ex:
-            print(ex)
+            print("Exception at url", url, ex)
 
         except ClientOSError as ex:
-            print(ex)
+            print("Exception at url", url, ex)
 
         return None
 

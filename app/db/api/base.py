@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pymongo import UpdateOne
+from pymongo import UpdateOne, ASCENDING
 from pymongo.errors import BulkWriteError
 
 ROOT_DIR = Path(__file__).parent.parent.parent
@@ -56,6 +56,20 @@ class BaseRepository(RepositoryInterface):
 
     async def get_matches(self, codes: str) -> list[dict] | None:
         cursor = self.matches_collection.find({"code": {"$in": codes}})
+        return [m async for m in cursor]
+
+    async def get_filtered_matches(
+        self,
+        match_filter: dict,
+        limit: int | None = None,
+        skip: int | None = None,
+    ) -> list[dict] | None:
+        cursor = self.matches_collection.find(match_filter)
+        if skip is not None:
+            cursor = cursor.skip(skip)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        cursor.sort("description.start_date", ASCENDING)
         return [m async for m in cursor]
 
     async def upsert_current_match(self, match: dict) -> None:

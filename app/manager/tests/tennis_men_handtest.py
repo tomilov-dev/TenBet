@@ -35,7 +35,7 @@ def get_manager() -> TennisMenManager:
         tournament_matches=TournamentMatchesScraper(sport=sport),
         player=PlayerScraper(sport=sport),
         player_matches=PlayerMatchesScaper(sport=sport),
-        predictor=RandomTennisMenPredictor(sport=sport, data=data)
+        predictor=RandomTennisMenPredictor(data=data),
     )
 
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # asyncio.run(collect_current_matches_test())
     # asyncio.run(update_matches_for_week_test())
 
-    # asyncio.run(collect_tournaments_matches_test())
+    asyncio.run(collect_tournaments_matches_test())
     # asyncio.run(collect_players_matches_test())
 
-    asyncio.run(recollect_current_matches_test())
+    # asyncio.run(recollect_current_matches_test())
