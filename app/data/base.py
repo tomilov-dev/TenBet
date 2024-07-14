@@ -6,6 +6,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 from model.service import MatchSDM
 from model.domain import MatchStatusDTO
+from model.prediction import MatchPredictionHA, MatchPrediction1x2
 from manager.base import BaseDataInterface, MatchFilter
 
 
@@ -17,6 +18,14 @@ class RepositoryInterface(ABC):
 
     @abstractmethod
     async def find_codes(self, codes: list[str]) -> list[dict]:
+        pass
+
+    @abstractmethod
+    async def add_prediction(self, code: str, prediction: dict) -> None:
+        pass
+
+    @abstractmethod
+    async def get_prediction(self, code: str) -> dict:
         pass
 
     @abstractmethod
@@ -35,6 +44,7 @@ class RepositoryInterface(ABC):
     async def get_matches(self, codes: list[str]) -> list[dict] | None:
         pass
 
+    @abstractmethod
     async def get_filtered_matches(
         self,
         match_filter: dict,
@@ -90,6 +100,22 @@ class BaseData(BaseDataInterface):
         codes = await self.db.find_codes(codes)
         codes = [MatchStatusDTO(**c) for c in codes]
         return codes
+
+    async def add_prediction(
+        self,
+        prediction: MatchPredictionHA | MatchPrediction1x2,
+    ) -> None:
+        return await self.db.add_prediction(
+            code=prediction.code,
+            prediction=prediction.model_dump(),
+        )
+
+    async def get_prediction(
+        self,
+        code: str,
+    ) -> MatchPredictionHA | MatchPrediction1x2:
+        prediction = await self.db.get_prediction(code)
+        return MatchPredictionHA(**prediction)
 
     async def add_match(self, match: MatchSDM) -> None:
         await self.db.add_match(match.model_dump())

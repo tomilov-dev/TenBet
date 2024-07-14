@@ -7,19 +7,21 @@ sys.path.append(str(ROOT_DIR))
 
 from manager.base import BaseDataInterface
 from manager.service import SPORT
-from ml.base import BasePreditor, MatchPredictionHA
+from model.service import MatchSDM
+from ml.base import RandomPredictor, MatchPredictionHA
 
 
-class RandomTennisWomenPredictor(BasePreditor):
+class RandomTennisWomenPredictor(RandomPredictor):
     def __init__(self, data: BaseDataInterface) -> None:
-        super().__init__(SPORT.TENNIS_MEN, data)
+        super().__init__(SPORT.TENNIS_WOMEN, data)
 
-    async def predict(self, code: str) -> MatchPredictionHA:
+    async def predict(self, match: MatchSDM) -> MatchPredictionHA:
         proba = random.random()
-        winner = 1 if proba >= 0.5 else 0
+        winner = 1 if proba >= 0.5 else 2
         return MatchPredictionHA(
-            code=code,
+            code=match.code,
             win_predict=winner,
             probability_t1=proba,
             probability_t2=1 - proba,
+            model="Random Tennis Women Model",
         )

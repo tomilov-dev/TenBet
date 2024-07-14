@@ -17,6 +17,7 @@ client = AsyncIOMotorClient(
 ### Collections
 MATHCES = "matches"
 CURRENT = "current_matches"
+PREDICTIONS = "predictions"
 
 
 async def create_match_indexes(db: AsyncIOMotorDatabase):
@@ -61,6 +62,17 @@ async def create_current_indexes(db: AsyncIOMotorDatabase):
     )
 
 
+async def create_predictions_indexes(db: AsyncIOMotorDatabase):
+    await db[PREDICTIONS].create_indexes(
+        [
+            pymongo.IndexModel(
+                [("code", pymongo.ASCENDING)],
+                unique=True,
+            ),
+        ]
+    )
+
+
 async def init_db():
     databases = [
         client[settings.MONGO_TENNIS_MEN_DB],
@@ -78,6 +90,11 @@ async def init_db():
         asyncio.create_task(create_current_indexes(db)) for db in databases
     ]
     await asyncio.gather(*current_indexes)
+
+    predictions_indexes = [
+        asyncio.create_task(create_predictions_indexes(db)) for db in databases
+    ]
+    await asyncio.gather(*predictions_indexes)
 
 
 if __name__ == "__main__":

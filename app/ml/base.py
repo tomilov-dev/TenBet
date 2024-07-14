@@ -17,7 +17,7 @@ sys.path.append(str(ROOT_DIR))
 from model.prediction import MatchPredictionHA, MatchPrediction1x2
 from manager.base import BasePredictorInterface, BaseDataInterface
 from manager.service import SportType
-from manager.base import MatchFilter
+from manager.base import MatchFilter, LackOfStatisticsError
 from model.service import MatchSDM
 
 
@@ -33,7 +33,7 @@ PREPROCESSED_FEATURES_FILENAME = "preprocessed_features.xlsx"
 MODEL_FILENAME = "model.pkl"
 
 
-class BasePreditor(BasePredictorInterface):
+class RandomPredictor(BasePredictorInterface):
     def __init__(
         self,
         sport: SportType,
@@ -62,6 +62,8 @@ class StatValue(BaseModel):
 
 class StandardML:
     DIST_DIR = None
+    TIME_SPREAD = TMP_MONTH * 6
+    MODEL_NAME = "Standard Model"
 
     def __init__(
         self,
@@ -144,7 +146,11 @@ class StandardML:
         min_date: int,
         max_date: int,
     ) -> list[dict]:
-        stats_by_team = stats_by_teams[code_team]
+        stats_by_team = stats_by_teams.get(code_team, None)
+        if stats_by_team is None:
+            raise LackOfStatisticsError(
+                f"There are no statistics for team with code: {code_team}"
+            )
 
         start = bisect.bisect_left(stats_by_team, min_date, key=lambda x: x.date)
         end = bisect.bisect_right(stats_by_team, max_date - 1, key=lambda x: x.date)
@@ -382,20 +388,21 @@ class StandardMLTrainer(StandardML):
         match_filter = MatchFilter(error=False)
         matches = await self.data.get_filtered_matches(match_filter)
 
-        # matches = matches[:2500]
-
         if preprocessed_features:
             if not os.path.exists(self.DIST_DIR / PREPROCESSED_FEATURES_FILENAME):
                 raise FileExistsError("Preprocessed features file does not exist")
             features_df = pd.read_excel(self.DIST_DIR / PREPROCESSED_FEATURES_FILENAME)
         else:
             features_df = self.setup_matches_features(
-                matches, time_spread=TMP_MONTH * 6
+                matches, time_spread=self.TIME_SPREAD
             )
 
         train_data: pd.DataFrame
         test_data: pd.DataFrame
 
+        ## here we use consecutive split of data (non-random)
+        ## it's not good, but fine for now
+        ## we should control it in future to avoid data leakage
         train_data = features_df[: int(len(features_df) * 0.7)]
         test_data = features_df[int(len(features_df) * 0.7) :]
 
@@ -436,18 +443,16 @@ class StandardMLTrainer(StandardML):
         print(f"Model Accuracy: {accuracy:.2f}")
 
 
-class StandardPredictor(StandardML):
+class StandardPredictor(StandardML, BasePredictorInterface):
     def __init__(
         self,
         sport: SportType,
         data: BaseDataInterface,
-        na_filler: pd.Series | None = None,
-        model: RandomForestClassifier | None = None,
     ) -> None:
         super().__init__(sport, data)
 
-        self.na_filler = na_filler
-        self.model = model
+        self.na_filler: pd.Series = None
+        self.model: RandomForestClassifier = None
 
         self.initialize()
 
@@ -460,29 +465,71 @@ class StandardPredictor(StandardML):
         self.na_filler = pd.read_excel(self.DIST_DIR / NA_FILLER_FILENAME, index_col=0)
         self.model = self.upload_model()
 
-    async def predict(self, match: MatchSDM):
-        code_team1 = match.description.code_t1
-        code_team2 = match.description.code_t2
-
-        match_filter = MatchFilter(team_codes=[code_team1, code_team2])
-        matches = await self.data.get_filtered_matches(match_filter)
-        stats_bt, matches_bt, stats_keys = self.group_by_team(matches)
-
-        features = self.setup_match_features(
-            match,
-            time_spread=TMP_MONTH * 6,
-            stats_by_teams=stats_bt,
-            matches_by_teams=matches_bt,
-            stats_keys=stats_keys,
+    def setup_prediction_error(
+        self,
+        match: MatchSDM,
+        error: str,
+    ) -> MatchPredictionHA | MatchPrediction1x2:
+        return MatchPredictionHA(
+            code=match.code,
+            win_predict=-1,
+            probability_t1=-1,
+            probability_t2=-1,
+            error=error,
+            model=self.MODEL_NAME,
         )
-        features = pd.DataFrame([features])
 
-        for stname in self.na_filler.index:
-            if stname not in features:
-                features[stname] = None
+    def setup_prediction(
+        self,
+        match: MatchSDM,
+        predict: list[float],
+    ) -> MatchPredictionHA | MatchPrediction1x2:
+        # proba - probability of win/lose of team 1
+        proba0 = predict[0]
+        proba1 = predict[1]
 
-        features = features[self.na_filler.index.tolist()]
-        features = features.fillna(self.na_filler)
+        # win predict - team 1 or team 2 win (or draw in 1x2)
+        win_predict = 1 if proba1 >= proba0 else 2
 
-        predict = self.model.predict_proba(features)
-        return predict[0]
+        return MatchPredictionHA(
+            code=match.code,
+            win_predict=win_predict,
+            probability_t1=proba1,
+            probability_t2=proba0,
+            model=self.MODEL_NAME,
+        )
+
+    async def predict(self, match: MatchSDM) -> MatchPredictionHA | MatchPrediction1x2:
+        try:
+            code_team1 = match.description.code_t1
+            code_team2 = match.description.code_t2
+
+            match_filter = MatchFilter(team_codes=[code_team1, code_team2])
+            matches = await self.data.get_filtered_matches(match_filter)
+            stats_bt, matches_bt, stats_keys = self.group_by_team(matches)
+
+            features = self.setup_match_features(
+                match,
+                time_spread=self.TIME_SPREAD,
+                stats_by_teams=stats_bt,
+                matches_by_teams=matches_bt,
+                stats_keys=stats_keys,
+            )
+            features = pd.DataFrame([features])
+
+            for stname in self.na_filler.index:
+                if stname not in features:
+                    features[stname] = None
+
+            features = features[self.na_filler.index.tolist()]
+            features = features.fillna(self.na_filler)
+
+            predict = self.model.predict_proba(features)[0]
+            prediction = self.setup_prediction(match, predict)
+
+        except LackOfStatisticsError as ex:
+            print(ex)
+            prediction = self.setup_prediction_error(match, "Lack of statistics")
+
+        finally:
+            return prediction

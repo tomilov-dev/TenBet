@@ -9,6 +9,7 @@ from manager.tennis_men import TennisMenManager
 from manager.service import SPORT
 from data.tennis_men import TennisMenData
 from ml.tennis_men.random import RandomTennisMenPredictor
+from ml.tennis_men.standard import StandardTennisMenMLPredictor
 from db.api.tennis_men import TennisMenRepository
 
 from service.flashscore.scraper.match import MatchScraper
@@ -39,7 +40,7 @@ manager = TennisMenManager(
     tournament_matches=TournamentMatchesScraper(sport),
     player=PlayerScraper(sport),
     player_matches=PlayerMatchesScaper(sport),
-    predictor=RandomTennisMenPredictor(data),
+    predictor=StandardTennisMenMLPredictor(data),
 )
 
 

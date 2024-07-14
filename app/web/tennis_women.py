@@ -9,6 +9,7 @@ from manager.tennis_women import TennisWomenManager
 from manager.service import SPORT
 from data.tennis_women import TennisWomenData
 from ml.tennis_women.random import RandomTennisWomenPredictor
+from ml.tennis_women.standard import StandardTennisWomenMLPredictor
 from db.api.tennis_women import TennisWomenRepository
 
 from service.flashscore.scraper.match import MatchScraper
@@ -39,7 +40,7 @@ manager = TennisWomenManager(
     tournament_matches=TournamentMatchesScraper(sport),
     player=PlayerScraper(sport),
     player_matches=PlayerMatchesScaper(sport),
-    predictor=RandomTennisWomenPredictor(data),
+    predictor=StandardTennisWomenMLPredictor(data),
 )
 
 

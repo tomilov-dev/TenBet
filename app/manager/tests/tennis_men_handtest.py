@@ -7,7 +7,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from manager.service import SPORT, StatusCode
 from manager.base import MatchCodesFilter, TournamentFilter, PlayerFilter
 from manager.tennis_men import TennisMenManager
-from ml.tennis_men.random import RandomTennisMenPredictor
+from ml.tennis_men.standard import StandardTennisMenMLPredictor
 
 ## dependencies
 from data.tennis_men import TennisMenData
@@ -35,7 +35,7 @@ def get_manager() -> TennisMenManager:
         tournament_matches=TournamentMatchesScraper(sport=sport),
         player=PlayerScraper(sport=sport),
         player_matches=PlayerMatchesScaper(sport=sport),
-        predictor=RandomTennisMenPredictor(data=data),
+        predictor=StandardTennisMenMLPredictor(data=data),
     )
 
 
@@ -128,10 +128,10 @@ if __name__ == "__main__":
     # asyncio.run(add_match_test())
     # asyncio.run(add_matches_test())
 
-    # asyncio.run(collect_current_matches_test())
     # asyncio.run(update_matches_for_week_test())
 
-    asyncio.run(collect_tournaments_matches_test())
+    # asyncio.run(collect_tournaments_matches_test())
     # asyncio.run(collect_players_matches_test())
 
+    asyncio.run(collect_current_matches_test())
     # asyncio.run(recollect_current_matches_test())

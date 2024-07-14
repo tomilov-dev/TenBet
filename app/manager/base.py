@@ -31,6 +31,10 @@ from manager.service import (
 )
 
 
+class LackOfStatisticsError(Exception):
+    pass
+
+
 class BaseDataInterface(ABC):
     ### MATCH collection methods
     @abstractmethod
@@ -39,6 +43,20 @@ class BaseDataInterface(ABC):
 
     @abstractmethod
     async def find_codes(self, codes: list[str]) -> list[MatchStatusDTO]:
+        pass
+
+    @abstractmethod
+    async def add_prediction(
+        self,
+        prediction: MatchPredictionHA | MatchPrediction1x2,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def get_prediction(
+        self,
+        code: str,
+    ) -> MatchPredictionHA | MatchPrediction1x2:
         pass
 
     @abstractmethod
@@ -104,7 +122,7 @@ class BasePredictorInterface(ABC):
     @abstractmethod
     async def predict(
         self,
-        code: str,
+        match: MatchSDM,
     ) -> MatchPredictionHA | MatchPrediction1x2:
         pass
 
@@ -370,8 +388,12 @@ class BaseManager(AbstractManager):
     async def get_all_current_matches(self) -> list[MatchSDM] | None:
         return await self.data.get_all_current_matches()
 
+    async def add_prediction(self, match: MatchSDM) -> None:
+        prediction = await self.predictor.predict(match)
+        await self.data.add_prediction(prediction)
+
     async def get_prediction(self, code: str) -> MatchPredictionHA | MatchPrediction1x2:
-        return await self.predictor.predict(code)
+        return await self.data.get_prediction(code)
 
     async def add_match(self, code: str) -> MatchSDM | None:
         found = await self.find_code(code)
@@ -417,7 +439,12 @@ class BaseManager(AbstractManager):
         tasks = [asyncio.create_task(self.scrape_match_data(mc.code)) for mc in codes]
         matches = await asyncio.gather(*tasks)
 
+        ### make predictions
+        tasks = [asyncio.create_task(self.add_prediction(m)) for m in matches]
+        await asyncio.gather(*tasks)
+
         await self.data.upsert_current_matches(matches)
+
         return matches
 
     async def recollect_current_matches(self) -> list[MatchSDM]:

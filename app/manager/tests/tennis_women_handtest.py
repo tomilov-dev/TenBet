@@ -11,7 +11,6 @@ from manager.tennis_women import TennisWomenManager
 ## dependencies
 from data.tennis_women import TennisWomenData
 from db.api.tennis_women import TennisWomenRepository
-from ml.tennis_women.random import RandomTennisWomenPredictor
 from service.flashscore.scraper.match import MatchScraper
 from service.flashscore.scraper.tournament import TournamentScraper
 from service.flashscore.scraper.tournament import TournamentMatchesScraper
@@ -19,6 +18,7 @@ from service.flashscore.scraper.player import PlayerScraper
 from service.flashscore.scraper.player import PlayerMatchesScaper
 from service.flashscore.scraper.week import WeeklyMatchesScraper
 from service.betexplorer.scraper import BetExplorerScraper
+from ml.tennis_women.standard import StandardTennisWomenMLPredictor
 
 
 def get_manager() -> TennisWomenManager:
@@ -35,7 +35,7 @@ def get_manager() -> TennisWomenManager:
         tournament_matches=TournamentMatchesScraper(sport=sport),
         player=PlayerScraper(sport=sport),
         player_matches=PlayerMatchesScaper(sport=sport),
-        predictor=RandomTennisWomenPredictor(sport=sport, data=data),
+        predictor=StandardTennisWomenMLPredictor(data=data),
     )
 
 
@@ -131,10 +131,10 @@ if __name__ == "__main__":
     # asyncio.run(add_match_test())
     # asyncio.run(add_matches_test())
 
-    # asyncio.run(collect_current_matches_test())
     # asyncio.run(update_matches_for_week_test())
 
     # asyncio.run(collect_tournaments_matches_test())
-    asyncio.run(collect_players_matches_test())
+    # asyncio.run(collect_players_matches_test())
 
+    asyncio.run(collect_current_matches_test())
     # asyncio.run(recollect_current_matches_test())

@@ -45,7 +45,7 @@ class BetExplorerParser:
             odds_date = int(odds_date.timestamp()) - 3600  # transform to gmt-0
 
             open_odds = re.findall(r'data-opening-odd=\\"(.*?)\\"', book)
-            if open_odds:
+            if open_odds and len(open_odds) == 2:
                 oped_odds_date = re.search(
                     r'data-opening-date=\\"(.*?)\\"', book
                 ).group(1)
@@ -101,7 +101,7 @@ class BetExplorerParser:
             odds_date = int(odds_date.timestamp()) - 3600  # transform to gmt-0
 
             open_odds = re.findall(r'data-opening-odd=\\"(.*?)\\"', book)
-            if len(open_odds) > 0:
+            if open_odds and len(open_odds) == 3:
                 oped_odds_date = re.search(
                     r'data-opening-date=\\"(.*?)\\"', book
                 ).group(1)
@@ -231,6 +231,8 @@ async def test_ha():
 async def test_ha_error():
     scraper = BetExplorerScraper(SPORT.TENNIS_MEN)
     codes = [
+        "OQanxat8",
+        "2uJNG96t",
         "OtjFfQkT",
         "z74SqPeJ",
         "StTFtIjn",

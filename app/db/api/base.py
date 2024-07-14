@@ -7,10 +7,8 @@ from pymongo.errors import BulkWriteError
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.append(str(ROOT_DIR))
 
-from settings import settings
-from db.core import MATHCES, client, CURRENT
+from db.core import MATHCES, CURRENT, PREDICTIONS
 from data.base import RepositoryInterface
-from model.service import MatchSDM
 
 
 class BaseRepository(RepositoryInterface):
@@ -22,6 +20,7 @@ class BaseRepository(RepositoryInterface):
 
         self.matches_collection = self.db[MATHCES]
         self.current_collection = self.db[CURRENT]
+        self.predictions_collection = self.db[PREDICTIONS]
 
     async def find_code(self, code: str) -> dict:
         return await self.matches_collection.find_one(
@@ -35,6 +34,16 @@ class BaseRepository(RepositoryInterface):
             {"_id": 1, "code": 1, "status": 1, "error": 1},
         )
         return [m async for m in cursor]
+
+    async def add_prediction(self, code: str, prediction: dict) -> None:
+        await self.predictions_collection.update_one(
+            filter={"code": code},
+            update={"$set": prediction},
+            upsert=True,
+        )
+
+    async def get_prediction(self, code: str) -> dict:
+        return await self.predictions_collection.find_one({"code": code})
 
     async def add_match(self, match: dict) -> None:
         await self.matches_collection.insert_one(match)
